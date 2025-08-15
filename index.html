@@ -224,21 +224,26 @@
             <div id="dataSyncSection" class="admin-panel hidden">
                 <h3>数据同步配置</h3>
                 <div class="sync-config">
-                    <div class="config-item">
-                        <label>GitHub Personal Access Token:</label>
-                        <input type="password" id="githubToken" placeholder="请输入你的GitHub Token">
-                        <small>用于跨设备数据同步。访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Token设置</a> 创建token，需要勾选gist权限</small>
-                    </div>
-                    <div class="config-item">
-                        <button onclick="saveSyncConfig()">保存配置</button>
-                        <button onclick="testSync()">测试同步</button>
-                        <button onclick="clearSyncConfig()">清除配置</button>
-                        <button onclick="debugSyncStatus()">调试信息</button>
-                    </div>
-                    <div class="sync-status">
-                        <p>当前状态: <span id="syncStatus">未配置</span></p>
-                        <p>Gist ID: <span id="gistIdDisplay">未创建</span></p>
-                    </div>
+                                    <div class="config-item">
+                    <label>GitHub Personal Access Token:</label>
+                    <input type="password" id="githubToken" placeholder="请输入你的GitHub Token">
+                    <small>用于跨设备数据同步。访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Token设置</a> 创建token，需要勾选gist权限</small>
+                </div>
+                <div class="config-item">
+                    <label>Gist ID (可选):</label>
+                    <input type="text" id="gistIdInput" placeholder="留空则自动创建，或输入已有的Gist ID">
+                    <small>如果已有Gist ID，请在此输入；留空则系统会自动创建新的Gist</small>
+                </div>
+                <div class="config-item">
+                    <button onclick="saveSyncConfig()">保存配置</button>
+                    <button onclick="testSync()">测试同步</button>
+                    <button onclick="clearSyncConfig()">清除配置</button>
+                    <button onclick="debugSyncStatus()">调试信息</button>
+                </div>
+                <div class="sync-status">
+                    <p>当前状态: <span id="syncStatus">未配置</span></p>
+                    <p>Gist ID: <span id="gistIdDisplay">未创建</span></p>
+                </div>
                 </div>
             </div>
         </div>

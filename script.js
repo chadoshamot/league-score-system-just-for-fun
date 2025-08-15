@@ -2027,16 +2027,26 @@ function showDataSync() {
 
 function saveSyncConfig() {
     const token = document.getElementById('githubToken').value.trim();
+    const gistIdInput = document.getElementById('gistIdInput').value.trim();
+    
     if (!token) {
         alert('请输入GitHub Personal Access Token');
         return;
     }
     
-    // 检查是否已有Gist ID
-    const existingGistId = localStorage.getItem('leagueScoreGistId');
-    if (existingGistId) {
-        GIST_CONFIG.gistId = existingGistId;
-        localStorage.setItem('leagueScoreGistId', existingGistId);
+    // 如果用户输入了Gist ID，使用用户输入的
+    if (gistIdInput) {
+        GIST_CONFIG.gistId = gistIdInput;
+        localStorage.setItem('leagueScoreGistId', gistIdInput);
+        console.log('使用用户输入的Gist ID:', gistIdInput);
+    } else {
+        // 检查是否已有Gist ID
+        const existingGistId = localStorage.getItem('leagueScoreGistId');
+        if (existingGistId) {
+            GIST_CONFIG.gistId = existingGistId;
+            localStorage.setItem('leagueScoreGistId', existingGistId);
+            console.log('使用已保存的Gist ID:', existingGistId);
+        }
     }
     
     GIST_CONFIG.token = token;
@@ -2083,6 +2093,7 @@ function clearSyncConfig() {
         localStorage.removeItem('leagueScoreGistId');
         
         document.getElementById('githubToken').value = '';
+        document.getElementById('gistIdInput').value = '';
         updateSyncStatus();
         alert('同步配置已清除');
     }
@@ -2152,5 +2163,9 @@ function loadSavedToken() {
     
     if (savedGistId) {
         GIST_CONFIG.gistId = savedGistId;
+        const gistIdInput = document.getElementById('gistIdInput');
+        if (gistIdInput) {
+            gistIdInput.value = savedGistId;
+        }
     }
 }
