@@ -267,7 +267,7 @@ function hideAllSections() {
 }
 
 // 用户认证
-function login() {
+async function login() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
@@ -282,6 +282,16 @@ function login() {
         
         // 如果是管理员登录，确保用户列表是最新的
         if (isAdmin) {
+            // 先尝试从云端同步最新数据
+            if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
+                try {
+                    await loadDataFromGist();
+                    console.log('管理员登录后已从云端同步最新数据');
+                } catch (error) {
+                    console.error('同步失败:', error);
+                }
+            }
+            
             // 延迟一下确保界面完全加载后再更新
             setTimeout(() => {
                 updateAdminInterface();
@@ -330,6 +340,16 @@ async function register() {
     
     // 保存数据
     await saveData();
+    
+    // 强制同步到云端（确保新用户立即可见）
+    if (GIST_CONFIG.token) {
+        try {
+            await saveDataToGist();
+            console.log('新用户注册后数据已同步到云端');
+        } catch (error) {
+            console.error('同步失败:', error);
+        }
+    }
     
     // 如果当前有管理员登录，自动更新管理员界面
     if (currentUser && isAdmin) {
