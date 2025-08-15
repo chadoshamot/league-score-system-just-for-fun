@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单轮排行榜修复测试</title>
+</head>
+<body>
+    <h1>联赛积分预测系统 - 单轮排行榜修复测试</h1>
+    <p>请打开 index.html 来测试修复后的功能</p>
+    
+    <h2>已修复的问题：</h2>
+    <ul>
+        <li>✅ <strong>问题：</strong>单轮排行榜显示异常，只显示"得分0"</li>
+        <li>✅ <strong>问题：</strong>缺少排名信息，没有显示具体排名</li>
+        <li>✅ <strong>问题：</strong>轮次选择器更新逻辑有误</li>
+    </ul>
+    
+    <h2>修复内容详情：</h2>
+    
+    <h3>问题1：单轮排行榜显示异常</h3>
+    <ul>
+        <li>修复了单轮排行榜显示逻辑</li>
+        <li>正确显示得分和排名信息</li>
+        <li>添加了排名显示格式：排名: X/总数</li>
+    </ul>
+    
+    <h3>问题2：轮次选择器更新逻辑</h3>
+    <ul>
+        <li>修复了轮次选择器更新逻辑</li>
+        <li>确保显示所有轮次（包括当前轮次）</li>
+        <li>正确排序和选择轮次</li>
+    </ul>
+    
+    <h3>问题3：数据更新同步</h3>
+    <ul>
+        <li>修复了计算得分后的数据更新</li>
+        <li>确保单轮排行榜能正确更新</li>
+        <li>修复了重新计算轮次后的数据更新</li>
+    </ul>
+    
+    <h2>新增功能：</h2>
+    <ul>
+        <li><strong>排名显示：</strong>显示具体排名（如：排名: 2/100）</li>
+        <li><strong>轮次选择：</strong>正确显示所有轮次选项</li>
+        <li><strong>数据同步：</strong>确保各界面数据同步更新</li>
+    </ul>
+    
+    <h2>测试步骤：</h2>
+    <ol>
+        <li>打开 index.html</li>
+        <li>使用管理员账户登录</li>
+        <li>创建几场比赛并添加比赛结果</li>
+        <li>让用户进行预测</li>
+        <li>计算得分</li>
+        <li>切换到单轮排行榜标签页</li>
+        <li>选择不同轮次查看排行榜</li>
+        <li>验证排名信息是否正确显示</li>
+    </ol>
+    
+    <h2>预期结果：</h2>
+    <ul>
+        <li>单轮排行榜正确显示用户得分</li>
+        <li>显示具体排名信息（如：排名: 2/100）</li>
+        <li>轮次选择器显示所有可用轮次</li>
+        <li>切换轮次时排行榜正确更新</li>
+    </ul>
+    
+    <h2>显示格式示例：</h2>
+    <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+        <strong>第1名: 用户名</strong><br>
+        <span>得分: 25</span><br>
+        <span>排名: 1/50</span>
+    </div>
+    
+    <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+        <strong>第2名: 用户名</strong><br>
+        <span>得分: 20</span><br>
+        <span>排名: 2/50</span>
+    </div>
+</body>
+</html>

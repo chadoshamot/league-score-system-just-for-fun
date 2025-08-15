@@ -17,6 +17,15 @@ const ADMIN_PASSWORD = "admin123";
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
     showLogin();
+    
+    // 确保数据加载完成后界面正确显示
+    setTimeout(() => {
+        if (currentUser && isAdmin) {
+            updateAdminInterface();
+        } else if (currentUser) {
+            updateMainInterface();
+        }
+    }, 100);
 });
 
 // 数据存储和加载
@@ -36,15 +45,33 @@ function saveData() {
 function loadData() {
     const data = localStorage.getItem('leagueScoreData');
     if (data) {
-        const parsed = JSON.parse(data);
-        users = parsed.users || {};
-        predictions = parsed.predictions || {};
-        matchResults = parsed.matchResults || {};
-        leaderboard = parsed.leaderboard || [];
-        history = parsed.history || {};
-        currentRound = parsed.currentRound || 1;
-        deadlines = parsed.deadlines || {}; // 加载截止时间
-        scheduledMatches = parsed.scheduledMatches || {}; // 加载预设比赛
+        try {
+            const parsed = JSON.parse(data);
+            users = parsed.users || {};
+            predictions = parsed.predictions || {};
+            matchResults = parsed.matchResults || {};
+            leaderboard = parsed.leaderboard || [];
+            history = parsed.history || {};
+            currentRound = parsed.currentRound || 1;
+            deadlines = parsed.deadlines || {}; // 加载截止时间
+            scheduledMatches = parsed.scheduledMatches || {}; // 加载预设比赛
+            
+            // 确保scheduledMatches[currentRound]存在
+            if (!scheduledMatches[currentRound]) {
+                scheduledMatches[currentRound] = [];
+            }
+        } catch (error) {
+            console.error('数据加载失败:', error);
+            // 如果数据损坏，重置为默认值
+            users = {};
+            predictions = {};
+            matchResults = {};
+            leaderboard = [];
+            history = {};
+            currentRound = 1;
+            deadlines = {};
+            scheduledMatches = {};
+        }
     }
     
     // 如果没有用户，创建默认管理员账户
@@ -127,13 +154,26 @@ function register() {
         return;
     }
     
+    // 创建新用户
     users[username] = {
         password: password,
         isAdmin: false,
         joinDate: new Date().toISOString()
     };
     
+    // 初始化用户的预测数据
+    if (!predictions[username]) {
+        predictions[username] = {};
+    }
+    
+    // 保存数据
     saveData();
+    
+    // 清空输入框
+    document.getElementById('regUsername').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('regConfirmPassword').value = '';
+    
     alert('注册成功！');
     showLogin();
 }
@@ -186,7 +226,6 @@ function addPrediction() {
     };
     
     saveData();
-    updateMainInterface();
     
     // 清空输入框
     document.getElementById('score1').value = '';
@@ -202,6 +241,9 @@ function addPrediction() {
     const submitButton = document.querySelector('#predictionForm button');
     submitButton.textContent = '提交预测';
     submitButton.onclick = addPrediction;
+    
+    // 更新界面
+    updateMainInterface();
     
     alert(isUpdate ? '预测修改成功！' : '预测添加成功！');
 }
@@ -229,7 +271,6 @@ function addMatchResult() {
     };
     
     saveData();
-    updateAdminInterface();
     
     // 清空输入框
     document.getElementById('resultTeam1').value = '';
@@ -237,12 +278,81 @@ function addMatchResult() {
     document.getElementById('resultScore1').value = '';
     document.getElementById('resultScore2').value = '';
     
+    // 更新界面
+    updateAdminInterface();
+    
     alert('比赛结果添加成功！');
 }
 
+// 修改比赛结果
+function editMatchResult(matchKey) {
+    const result = matchResults[matchKey];
+    if (!result) {
+        alert('比赛结果不存在');
+        return;
+    }
+    
+    const newScore1 = prompt(`请输入${result.team1}的新得分:`, result.score1);
+    const newScore2 = prompt(`请输入${result.team2}的新得分:`, result.score2);
+    
+    if (newScore1 === null || newScore2 === null) {
+        return; // 用户取消
+    }
+    
+    const score1 = parseInt(newScore1);
+    const score2 = parseInt(newScore2);
+    
+    if (isNaN(score1) || isNaN(score2)) {
+        alert('请输入有效的比分');
+        return;
+    }
+    
+    // 更新比分
+    matchResults[matchKey].score1 = score1;
+    matchResults[matchKey].score2 = score2;
+    matchResults[matchKey].timestamp = new Date().toISOString();
+    
+    saveData();
+    updateAdminInterface();
+    
+    alert('比赛结果修改成功！');
+}
+
 function calculateScores() {
+    // 检查是否有比赛结果
     if (Object.keys(matchResults).length === 0) {
-        alert('请先添加比赛结果');
+        alert('请先添加比赛结果，无法计算得分！');
+        return;
+    }
+    
+    // 检查当前轮次是否有比赛结果
+    const currentRoundResults = Object.values(matchResults).filter(result => result.round === currentRound);
+    if (currentRoundResults.length === 0) {
+        alert('当前轮次没有比赛结果，无法计算得分！');
+        return;
+    }
+    
+    // 检查当前轮次是否已经计算过
+    if (history[currentRound]) {
+        alert(`第${currentRound}轮已经计算过得分，不能重复计算！`);
+        return;
+    }
+    
+    // 检查是否有用户预测
+    let hasPredictions = false;
+    for (const username in predictions) {
+        const userPredictions = predictions[username];
+        for (const matchKey in userPredictions) {
+            if (userPredictions[matchKey].round === currentRound) {
+                hasPredictions = true;
+                break;
+            }
+        }
+        if (hasPredictions) break;
+    }
+    
+    if (!hasPredictions) {
+        alert('当前轮次没有用户预测，无法计算得分！');
         return;
     }
     
@@ -265,6 +375,12 @@ function calculateScores() {
         }
     }
     
+    // 检查是否有有效得分
+    if (Object.keys(roundScores).length === 0) {
+        alert('没有找到有效的预测和结果匹配，无法计算得分！');
+        return;
+    }
+    
     // 更新排行榜
     for (const username in roundScores) {
         if (!leaderboard.find(item => item.username === username)) {
@@ -276,64 +392,103 @@ function calculateScores() {
         }
         
         const leaderboardItem = leaderboard.find(item => item.username === username);
-        leaderboardItem.totalScore += roundScores[username];
+        
+        // 移除该轮次的旧得分（如果存在）
+        leaderboardItem.rounds = leaderboardItem.rounds.filter(r => r.round !== currentRound);
+        
+        // 添加新的得分
         leaderboardItem.rounds.push({
             round: currentRound,
             score: roundScores[username]
         });
+        
+        // 重新计算总分
+        leaderboardItem.totalScore = leaderboardItem.rounds.reduce((sum, r) => sum + r.score, 0);
     }
     
     // 按总分排序
     leaderboard.sort((a, b) => b.totalScore - a.totalScore);
     
+    /*
     // 更新历史记录
-    if (!history[currentRound]) {
-        history[currentRound] = [];
-    }
-    
+    history[currentRound] = [];
     for (const username in roundScores) {
+        const rank = leaderboard.findIndex(item => item.username === username) + 1;
         history[currentRound].push({
             username: username,
             score: roundScores[username],
-            rank: leaderboard.findIndex(item => item.username === username) + 1
+            rank: rank
         });
     }
+    */
+    // 更新历史记录 - 修复排名计算逻辑
+    history[currentRound] = [];
+    
+    // 按当前轮次得分排序，计算排名
+    const roundRanking = Object.entries(roundScores)
+        .map(([username, score]) => ({ username, score }))
+        .sort((a, b) => b.score - a.score);
+    
+    // 更新历史记录，使用正确的排名
+    roundRanking.forEach((item, index) => {
+        history[currentRound].push({
+            username: item.username,
+            score: item.score,
+            rank: index + 1  // 排名基于当前轮次得分
+        });
+    });
     
     // 历史记录按得分排序
     history[currentRound].sort((a, b) => b.score - a.score);
     
+    // 进入下一轮
     currentRound++;
+    
     saveData();
     
-    alert(`第${currentRound - 1}轮得分计算完成！`);
+    // 更新所有界面
     updateAdminInterface();
+    updateMainInterface();
+    
+    // 特别更新轮次选择器和单轮排行榜
+    updateRoundSelector();
+    updateRoundLeaderboard();
+    
+    alert(`第${currentRound - 1}轮得分计算完成！`);
 }
 
-// 计算单场比赛得分（基于你的原始算法）
+// 计算单场比赛得分（完全按照League_old.cpp的逻辑）
 function calculateMatchScore(prediction, result) {
     const predWinLose = prediction.score1 - prediction.score2;
     const resultWinLose = result.score1 - result.score2;
     
-    // 胜负预测是否正确
-    const winLoseCorrect = (predWinLose > 0 && resultWinLose > 0) ||
-                          (predWinLose < 0 && resultWinLose < 0) ||
-                          (predWinLose === 0 && resultWinLose === 0);
+    // 检查胜负预测是否正确
+    let winLoseCorrect = false;
+    if (predWinLose > 0 && resultWinLose > 0) {
+        winLoseCorrect = true; // 预测左队赢，结果左队赢
+    } else if (predWinLose < 0 && resultWinLose < 0) {
+        winLoseCorrect = true; // 预测左队输，结果左队输
+    } else if (predWinLose === 0 && resultWinLose === 0) {
+        winLoseCorrect = true; // 预测平局，结果平局
+    }
     
     if (winLoseCorrect) {
         // 胜负预测正确
         if (prediction.score1 === result.score1 && prediction.score2 === result.score2) {
-            return 5; // 完全正确
+            return 5; // 完全正确，加5分
         } else if (predWinLose === resultWinLose) {
-            return 4; // 净胜分正确
+            return 3.5; // 净胜分正确，加3.5分
+        } else if (prediction.score1 === result.score1 || prediction.score2 === result.score2) {
+            return 3.5; // 部分比分正确，加3.5分
         } else {
-            return 3; // 胜负正确但比分错误
+            return 2; // 胜负正确但比分错误，加2分
         }
     } else {
         // 胜负预测错误
         if (prediction.score1 === result.score1 || prediction.score2 === result.score2) {
-            return 2; // 部分比分正确
+            return 1.5; // 部分比分正确，加1.5分
         } else {
-            return 1; // 完全错误
+            return 0; // 完全错误，加0分
         }
     }
 }
@@ -580,7 +735,8 @@ function updateAdminInterface() {
     updateRoundSelector();
     updateCurrentRoundDisplay();
     updateCurrentDeadlineDisplay();
-    updateScheduledMatchesDisplay();
+    updateScheduledMatchesDisplay(); // 确保轮次管理界面更新
+    updateMatchResultsForScheduledMatches();
 }
 
 // 排行榜标签页切换
@@ -605,17 +761,39 @@ function showRoundLeaderboard() {
     
     // 更新单轮排行榜
     updateRoundLeaderboard();
+    
+    // 确保轮次选择器有正确的值
+    const roundSelect = document.getElementById('roundSelect');
+    if (roundSelect && !roundSelect.value && roundSelect.options.length > 1) {
+        roundSelect.value = roundSelect.options[1].value; // 选择第一个非空选项
+        updateRoundLeaderboard();
+    }
 }
 
 // 更新轮次选择器
 function updateRoundSelector() {
     const roundSelect = document.getElementById('roundSelect');
+    if (!roundSelect) return;
+    
     roundSelect.innerHTML = '<option value="">请选择轮次</option>';
     
-    // 获取所有有记录的轮次
-    const rounds = Object.keys(history).sort((a, b) => parseInt(a) - parseInt(b));
+    // 获取所有有记录的轮次（包括当前轮次）
+    const allRounds = [];
+    for (let i = 1; i <= currentRound; i++) {
+        allRounds.push(i);
+    }
     
-    rounds.forEach(round => {
+    // 添加有历史记录的轮次
+    Object.keys(history).forEach(round => {
+        if (!allRounds.includes(parseInt(round))) {
+            allRounds.push(parseInt(round));
+        }
+    });
+    
+    // 排序轮次
+    allRounds.sort((a, b) => a - b);
+    
+    allRounds.forEach(round => {
         const option = document.createElement('option');
         option.value = round;
         option.textContent = `第${round}轮`;
@@ -623,14 +801,15 @@ function updateRoundSelector() {
     });
     
     // 如果有轮次，默认选择第一轮
-    if (rounds.length > 0) {
-        roundSelect.value = rounds[0];
+    if (allRounds.length > 0) {
+        roundSelect.value = allRounds[0];
         updateRoundLeaderboard();
     }
 }
 
 // 更新单轮排行榜
 function updateRoundLeaderboard() {
+    /*
     const selectedRound = document.getElementById('roundSelect').value;
     const container = document.getElementById('roundLeaderboardContainer');
     
@@ -656,6 +835,61 @@ function updateRoundLeaderboard() {
             <div class="rank-info">
                 <strong>第${index + 1}名: ${item.username}</strong>
                 <span>得分: ${item.score}</span>
+                <span>排名: ${item.rank}/${sortedData.length}</span>
+            </div>
+        `;
+        container.appendChild(roundItem);
+    });
+    */
+    const selectedRound = document.getElementById('roundSelect').value;
+    const container = document.getElementById('roundLeaderboardContainer');
+    
+    if (!selectedRound) {
+        container.innerHTML = '<p>请选择轮次</p>';
+        return;
+    }
+    
+    // 实时计算该轮次每个用户的得分
+    const roundScores = {};
+    
+    for (const username in predictions) {
+        let userScore = 0;
+        const userPredictions = predictions[username];
+        
+        for (const matchKey in userPredictions) {
+            const prediction = userPredictions[matchKey];
+            if (prediction.round === parseInt(selectedRound) && matchResults[matchKey]) {
+                const result = matchResults[matchKey];
+                const score = calculateMatchScore(prediction, result);
+                userScore += score;
+            }
+        }
+        
+        // 只添加有得分的用户
+        if (userScore > 0) {
+            roundScores[username] = userScore;
+        }
+    }
+    
+    if (Object.keys(roundScores).length === 0) {
+        container.innerHTML = '<p>该轮暂无得分数据</p>';
+        return;
+    }
+    
+    // 按得分排序
+    const sortedData = Object.entries(roundScores)
+        .map(([username, score]) => ({ username, score }))
+        .sort((a, b) => b.score - a.score);
+    
+    container.innerHTML = '';
+    sortedData.forEach((item, index) => {
+        const roundItem = document.createElement('div');
+        roundItem.className = 'leaderboard-item';
+        roundItem.innerHTML = `
+            <div class="rank-info">
+                <strong>第${index + 1}名: ${item.username}</strong>
+                <span>得分: ${item.score}</span>
+                <span>排名: ${index + 1}/${sortedData.length}</span>
             </div>
         `;
         container.appendChild(roundItem);
@@ -694,28 +928,8 @@ function updatePredictionsList() {
 }
 
 function updateMatchResultsList() {
-    const container = document.getElementById('matchResultsContainer');
-    container.innerHTML = '';
-    
-    for (const matchKey in matchResults) {
-        const result = matchResults[matchKey];
-        const resultItem = document.createElement('div');
-        resultItem.className = 'match-result-item';
-        resultItem.innerHTML = `
-            <div class="match-info">
-                <strong>${result.team1} ${result.score1} VS ${result.score2} ${result.team2}</strong>
-                <span>第${result.round}轮</span>
-            </div>
-            <div class="actions">
-                <button class="delete-btn" onclick="deleteMatchResult('${matchKey}')">删除</button>
-            </div>
-        `;
-        container.appendChild(resultItem);
-    }
-    
-    if (container.children.length === 0) {
-        container.innerHTML = '<p>暂无比赛结果</p>';
-    }
+    // 现在使用新的函数来更新比赛结果界面
+    updateMatchResultsForScheduledMatches();
 }
 
 function updateLeaderboard() {
@@ -809,9 +1023,9 @@ function editPrediction(matchKey) {
     // 设置当前选中的比赛
     window.selectedMatch = { team1: prediction.team1, team2: prediction.team2 };
     
-    // 修改按钮文本
+    // 修改按钮文本和功能
     const submitButton = document.querySelector('#predictionForm button');
-    submitButton.textContent = '更新预测';
+    submitButton.textContent = '保存修改';
     submitButton.onclick = function() {
         updatePrediction(matchKey);
     };
@@ -821,20 +1035,24 @@ function editPrediction(matchKey) {
 }
 
 function updatePrediction(matchKey) {
-    const team1 = document.getElementById('team1').value;
-    const team2 = document.getElementById('team2').value;
+    const prediction = predictions[currentUser][matchKey];
+    if (!prediction) {
+        alert('预测不存在');
+        return;
+    }
+    
     const score1 = parseInt(document.getElementById('score1').value);
     const score2 = parseInt(document.getElementById('score2').value);
     
-    if (!team1 || !team2 || isNaN(score1) || isNaN(score2)) {
-        alert('请填写完整的比赛信息');
+    if (isNaN(score1) || isNaN(score2)) {
+        alert('请输入有效的比分');
         return;
     }
     
     // 更新预测
     predictions[currentUser][matchKey] = {
-        team1: team1,
-        team2: team2,
+        team1: prediction.team1,
+        team2: prediction.team2,
         score1: score1,
         score2: score2,
         round: currentRound,
@@ -842,18 +1060,24 @@ function updatePrediction(matchKey) {
     };
     
     saveData();
-    updateMainInterface();
     
     // 清空输入框
-    document.getElementById('team1').value = '';
-    document.getElementById('team2').value = '';
     document.getElementById('score1').value = '';
     document.getElementById('score2').value = '';
     
+    // 隐藏预测表单
+    document.getElementById('predictionForm').classList.add('hidden');
+    
+    // 清除选中的比赛
+    window.selectedMatch = null;
+    
     // 恢复按钮状态
-    const addButton = document.querySelector('#predictionForm button');
-    addButton.textContent = '添加预测';
-    addButton.onclick = addPrediction;
+    const submitButton = document.querySelector('#predictionForm button');
+    submitButton.textContent = '提交预测';
+    submitButton.onclick = addPrediction;
+    
+    // 更新界面
+    updateMainInterface();
     
     alert('预测更新成功！');
 }
@@ -922,12 +1146,14 @@ function showMatchResults() {
     hideAdminPanels();
     document.getElementById('matchResultsSection').classList.remove('hidden');
     updateCurrentRoundDisplay();
+    updateMatchResultsForScheduledMatches();
 }
 
 function showRoundManagement() {
     hideAdminPanels();
     document.getElementById('roundManagementSection').classList.remove('hidden');
     updateRoundsList();
+    updateScheduledMatchesDisplay(); // 确保显示预设比赛
 }
 
 function showUserManagement() {
@@ -945,9 +1171,15 @@ function startNewRound() {
     if (confirm('确定要开始新轮次吗？当前轮次的预测和结果将被保留。')) {
         currentRound++;
         saveData();
+        
+        // 更新所有相关界面
         updateCurrentRoundDisplay();
         updateRoundsList();
         updateDeadlineDisplay();
+        updateCurrentDeadlineDisplay();
+        updateMainInterface();
+        updateAdminInterface();
+        
         alert(`已开始第${currentRound}轮！`);
     }
 }
@@ -1021,27 +1253,38 @@ function addScheduledMatch() {
         timestamp: new Date().toISOString()
     });
     
+    // 保存数据
     saveData();
     
     // 清空输入框
     document.getElementById('scheduleTeam1').value = '';
     document.getElementById('scheduleTeam2').value = '';
     
-    // 更新显示
+    // 更新所有相关界面
     updateScheduledMatchesDisplay();
     updateMatchSelectionDisplay();
+    updateMatchResultsForScheduledMatches();
     
     alert('比赛对阵添加成功！');
 }
 
 function removeScheduledMatch(matchId) {
     if (confirm('确定要删除这个比赛对阵吗？')) {
+        // 确保scheduledMatches[currentRound]存在
+        if (!scheduledMatches[currentRound]) {
+            scheduledMatches[currentRound] = [];
+        }
+        
+        // 过滤掉要删除的比赛
         scheduledMatches[currentRound] = scheduledMatches[currentRound].filter(match => match.id !== matchId);
+        
+        // 保存数据
         saveData();
         
-        // 更新显示
+        // 更新所有相关界面
         updateScheduledMatchesDisplay();
         updateMatchSelectionDisplay();
+        updateMatchResultsForScheduledMatches();
         
         alert('比赛对阵删除成功！');
     }
@@ -1138,48 +1381,7 @@ function selectMatchForPrediction(team1, team2) {
     window.selectedMatch = { team1, team2 };
 }
 
-// 修改预测功能（更新版本）
-function editPrediction(matchKey) {
-    const prediction = predictions[currentUser][matchKey];
-    
-    if (!prediction) {
-        alert('预测不存在');
-        return;
-    }
-    
-    // 检查是否超过截止时间
-    if (isDeadlineExpired(prediction.round)) {
-        alert('预测截止时间已过，无法修改！');
-        return;
-    }
-    
-    // 检查是否是当前轮次
-    if (prediction.round !== currentRound) {
-        alert('只能编辑当前轮次的预测！');
-        return;
-    }
-    
-    // 显示预测表单
-    document.getElementById('predictionForm').classList.remove('hidden');
-    document.getElementById('selectedMatchDisplay').textContent = `${prediction.team1} VS ${prediction.team2}`;
-    
-    // 填充输入框
-    document.getElementById('score1').value = prediction.score1;
-    document.getElementById('score2').value = prediction.score2;
-    
-    // 设置当前选中的比赛
-    window.selectedMatch = { team1: prediction.team1, team2: prediction.team2 };
-    
-    // 修改按钮文本
-    const submitButton = document.querySelector('#predictionForm button');
-    submitButton.textContent = '更新预测';
-    submitButton.onclick = function() {
-        updatePrediction(matchKey);
-    };
-    
-    // 滚动到预测表单
-    document.getElementById('predictionForm').scrollIntoView({ behavior: 'smooth' });
-}
+
 
 function isDeadlineExpired(round) {
     if (!deadlines[round]) return false;
@@ -1247,9 +1449,18 @@ function resetCurrentRound() {
         // 删除当前轮次的预设比赛
         delete scheduledMatches[currentRound];
         
+        // 保存数据
         saveData();
+        
+        // 更新所有相关界面
         updateAdminInterface();
+        updateMainInterface();
         updateDeadlineDisplay();
+        updateCurrentDeadlineDisplay();
+        updateScheduledMatchesDisplay();
+        updateMatchSelectionDisplay();
+        updateMatchResultsForScheduledMatches();
+        
         alert('当前轮次已重置！');
     }
 }
@@ -1404,6 +1615,7 @@ function cancelEdit(round) {
 // 重新计算轮次得分
 function recalculateRound(round) {
     if (confirm(`确定要重新计算第${round}轮得分吗？这将覆盖之前的计算结果。`)) {
+        /*
         // 删除该轮次的历史记录
         if (history[round]) {
             delete history[round];
@@ -1458,18 +1670,160 @@ function recalculateRound(round) {
         // 更新历史记录
         history[round] = [];
         for (const username in roundScores) {
+            const rank = leaderboard.findIndex(item => item.username === username) + 1;
             history[round].push({
                 username: username,
                 score: roundScores[username],
-                rank: leaderboard.findIndex(item => item.username === username) + 1
+                rank: rank
             });
         }
+        */
+       // 删除该轮次的历史记录
+        if (history[round]) {
+            delete history[round];
+        }
+        
+        // 重新计算该轮次得分
+        const roundScores = {};
+        
+        for (const username in predictions) {
+            let userScore = 0;
+            const userPredictions = predictions[username];
+            
+            for (const matchKey in userPredictions) {
+                const prediction = userPredictions[matchKey];
+                if (prediction.round === round && matchResults[matchKey]) {
+                    const result = matchResults[matchKey];
+                    const score = calculateMatchScore(prediction, result);
+                    userScore += score;
+                }
+            }
+            
+            if (userScore > 0) {
+                roundScores[username] = userScore;
+            }
+        }
+        
+        // 按得分排序，计算排名
+        const roundRanking = Object.entries(roundScores)
+            .map(([username, score]) => ({ username, score }))
+            .sort((a, b) => b.score - a.score);
+        
+        // 更新历史记录
+        history[round] = [];
+        roundRanking.forEach((item, index) => {
+            history[round].push({
+                username: item.username,
+                score: item.score,
+                rank: index + 1
+            });
+        });
         
         // 历史记录按得分排序
         history[round].sort((a, b) => b.score - a.score);
         
         saveData();
         alert(`第${round}轮得分重新计算完成！`);
+        
+        // 更新相关界面
         updateRoundsList();
+        updateRoundSelector();
+        updateRoundLeaderboard();
+        updateMainInterface();
     }
+}
+
+// 更新比赛结果页面的预设比赛显示
+function updateMatchResultsForScheduledMatches() {
+    const container = document.getElementById('matchResultsContainer');
+    if (!container) return;
+    
+    // 清空现有内容
+    container.innerHTML = '';
+    
+    // 显示预设比赛
+    const scheduledMatchesList = document.createElement('div');
+    scheduledMatchesList.className = 'scheduled-matches-section';
+    scheduledMatchesList.innerHTML = '<h4>预设比赛列表</h4>';
+    
+    const matches = scheduledMatches[currentRound] || [];
+    if (matches.length === 0) {
+        scheduledMatchesList.innerHTML += '<p>暂无预设比赛</p>';
+    } else {
+        matches.forEach(match => {
+            const matchItem = document.createElement('div');
+            matchItem.className = 'scheduled-match-result-item';
+            
+            // 检查是否已有比赛结果
+            const matchKey = `${match.team1}_${match.team2}`;
+            const hasResult = matchResults[matchKey] && matchResults[matchKey].round === currentRound;
+            
+            matchItem.innerHTML = `
+                <div class="match-info">
+                    <strong>${match.team1} VS ${match.team2}</strong>
+                    ${hasResult ? `<span style="color: green;">已有结果: ${matchResults[matchKey].score1} - ${matchResults[matchKey].score2}</span>` : '<span style="color: orange;">未输入结果</span>'}
+                </div>
+                <div class="match-actions">
+                    ${!hasResult ? 
+                        `<button onclick="inputMatchResultFromScheduled('${match.team1}', '${match.team2}')">输入结果</button>` :
+                        `<button onclick="editMatchResult('${matchKey}')">编辑结果</button>`
+                    }
+                    <button onclick="deleteMatchResult('${matchKey}')" ${!hasResult ? 'style="display:none;"' : ''}>删除结果</button>
+                </div>
+            `;
+            scheduledMatchesList.appendChild(matchItem);
+        });
+    }
+    
+    container.appendChild(scheduledMatchesList);
+    
+    // 显示手动输入比赛结果的表单
+    const manualInputSection = document.createElement('div');
+    manualInputSection.className = 'manual-input-section';
+    manualInputSection.innerHTML = `
+        <h4>手动输入比赛结果</h4>
+        <div class="match-result-input">
+            <input type="text" id="resultTeam1" placeholder="主队名称">
+            <input type="number" id="resultScore1" placeholder="主队得分" min="0">
+            <span>VS</span>
+            <input type="number" id="resultScore2" placeholder="客队得分" min="0">
+            <input type="text" id="resultTeam2" placeholder="客队名称">
+            <button onclick="addMatchResult()">添加比赛结果</button>
+        </div>
+    `;
+    
+    container.appendChild(manualInputSection);
+}
+
+// 从预设比赛输入比赛结果
+function inputMatchResultFromScheduled(team1, team2) {
+    const score1 = prompt(`请输入${team1}的得分:`);
+    const score2 = prompt(`请输入${team2}的得分:`);
+    
+    if (score1 === null || score2 === null) {
+        return; // 用户取消
+    }
+    
+    const score1Num = parseInt(score1);
+    const score2Num = parseInt(score2);
+    
+    if (isNaN(score1Num) || isNaN(score2Num)) {
+        alert('请输入有效的比分');
+        return;
+    }
+    
+    const matchKey = `${team1}_${team2}`;
+    matchResults[matchKey] = {
+        team1: team1,
+        team2: team2,
+        score1: score1Num,
+        score2: score2Num,
+        round: currentRound,
+        timestamp: new Date().toISOString()
+    };
+    
+    saveData();
+    updateMatchResultsForScheduledMatches();
+    
+    alert('比赛结果添加成功！');
 }
