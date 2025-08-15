@@ -105,7 +105,19 @@ function showMainSection() {
 function showAdminPanel() {
     hideAllSections();
     document.getElementById('adminSection').classList.remove('hidden');
+    
+    // 确保用户列表是最新的
     updateAdminInterface();
+    
+    // 额外确保用户列表更新
+    setTimeout(() => {
+        updateUserList();
+        updateUserStats();
+        
+        // 调试信息：在控制台显示当前用户数量
+        console.log('当前用户总数:', Object.keys(users).length);
+        console.log('用户列表:', Object.keys(users));
+    }, 50);
 }
 
 function hideAllSections() {
@@ -126,6 +138,15 @@ function login() {
     if (users[username] && users[username].password === password) {
         currentUser = username;
         isAdmin = users[username].isAdmin;
+        
+        // 如果是管理员登录，确保用户列表是最新的
+        if (isAdmin) {
+            // 延迟一下确保界面完全加载后再更新
+            setTimeout(() => {
+                updateAdminInterface();
+            }, 100);
+        }
+        
         showMainSection();
         document.getElementById('username').value = '';
         document.getElementById('password').value = '';
@@ -168,6 +189,11 @@ function register() {
     
     // 保存数据
     saveData();
+    
+    // 如果当前有管理员登录，自动更新管理员界面
+    if (currentUser && isAdmin) {
+        updateAdminInterface();
+    }
     
     // 清空输入框
     document.getElementById('regUsername').value = '';
@@ -707,6 +733,10 @@ function updateUserList() {
     
     // 更新用户统计
     updateUserStats();
+    
+    // 调试信息
+    console.log('updateUserList 执行完成，显示用户数:', displayedUsers);
+    console.log('总用户数:', Object.keys(users).length);
 }
 
 // 界面更新函数
@@ -952,7 +982,6 @@ function updateLeaderboard() {
         container.innerHTML = '<p>暂无排行榜数据</p>';
     }
 }
-
 function updateHistory() {
     const container = document.getElementById('historyContainer');
     container.innerHTML = '';
