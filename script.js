@@ -2205,7 +2205,7 @@ function loadSavedToken() {
     }
 }
 
-// 强制同步所有数据到云端
+// 强制同步所有数据到云端（智能融合）
 async function forceSyncAllData() {
     if (!GIST_CONFIG.token) {
         alert('请先配置GitHub Token');
@@ -2218,16 +2218,56 @@ async function forceSyncAllData() {
     }
     
     try {
-        console.log('开始强制同步所有数据...');
+        console.log('开始智能数据融合...');
         console.log('当前本地用户数:', Object.keys(users).length);
         console.log('当前本地用户列表:', Object.keys(users));
         
-        // 强制保存到云端
+        // 1. 先从云端获取最新数据
+        let cloudData = null;
+        try {
+            const response = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
+                headers: {
+                    'Authorization': `token ${GIST_CONFIG.token}`,
+                }
+            });
+            
+            if (response.ok) {
+                const gist = await response.json();
+                const file = gist.files[GIST_CONFIG.filename];
+                
+                if (file && file.content) {
+                    cloudData = JSON.parse(file.content);
+                    console.log('成功获取云端数据');
+                    console.log('云端用户数:', Object.keys(cloudData.users || {}).length);
+                    console.log('云端用户列表:', Object.keys(cloudData.users || {}));
+                }
+            }
+        } catch (error) {
+            console.log('获取云端数据失败，将使用本地数据:', error);
+        }
+        
+        // 2. 智能融合数据
+        const mergedData = mergeData(cloudData);
+        console.log('数据融合完成');
+        console.log('融合后用户数:', Object.keys(mergedData.users).length);
+        console.log('融合后用户列表:', Object.keys(mergedData.users));
+        
+        // 3. 更新本地数据
+        users = mergedData.users;
+        predictions = mergedData.predictions;
+        matchResults = mergedData.matchResults;
+        leaderboard = mergedData.leaderboard;
+        history = mergedData.history;
+        currentRound = mergedData.currentRound;
+        deadlines = mergedData.deadlines;
+        scheduledMatches = mergedData.scheduledMatches;
+        
+        // 4. 保存融合后的数据到云端
         const result = await saveDataToGist();
         
         if (result) {
-            console.log('强制同步成功！');
-            alert('数据同步成功！');
+            console.log('数据融合并同步成功！');
+            alert('数据融合并同步成功！');
             
             // 更新状态显示
             updateSyncStatus();
@@ -2237,12 +2277,163 @@ async function forceSyncAllData() {
                 updateUserList();
                 updateUserStats();
             }
+            
+            // 更新所有界面
+            updateMainInterface();
+            updateAdminInterface();
         } else {
-            console.error('强制同步失败');
-            alert('数据同步失败，请检查网络连接和Token配置');
+            console.error('数据同步失败');
+            alert('数据融合成功，但同步到云端失败，请检查网络连接');
         }
     } catch (error) {
-        console.error('强制同步出错:', error);
-        alert('数据同步出错: ' + error.message);
+        console.error('数据融合出错:', error);
+        alert('数据融合出错: ' + error.message);
     }
+}
+
+// 智能数据融合函数
+function mergeData(cloudData) {
+    const merged = {
+        users: {},
+        predictions: {},
+        matchResults: {},
+        leaderboard: [],
+        history: {},
+        currentRound: 1,
+        deadlines: {},
+        scheduledMatches: {}
+    };
+    
+    // 如果没有云端数据，直接返回本地数据
+    if (!cloudData) {
+        merged.users = { ...users };
+        merged.predictions = { ...predictions };
+        merged.matchResults = { ...matchResults };
+        merged.leaderboard = [...leaderboard];
+        merged.history = { ...history };
+        merged.currentRound = currentRound;
+        merged.deadlines = { ...deadlines };
+        merged.scheduledMatches = { ...scheduledMatches };
+        return merged;
+    }
+    
+    // 1. 融合用户数据（以最新注册时间为准）
+    const allUsers = { ...cloudData.users, ...users };
+    for (const username in allUsers) {
+        const cloudUser = cloudData.users[username];
+        const localUser = users[username];
+        
+        if (cloudUser && localUser) {
+            // 如果用户在两处都存在，选择注册时间更早的（更完整的）
+            const cloudDate = new Date(cloudUser.joinDate);
+            const localDate = new Date(localUser.joinDate);
+            merged.users[username] = cloudDate <= localDate ? cloudUser : localUser;
+        } else {
+            merged.users[username] = cloudUser || localUser;
+        }
+    }
+    
+    // 2. 融合预测数据（保留所有预测）
+    merged.predictions = { ...cloudData.predictions };
+    for (const username in predictions) {
+        if (!merged.predictions[username]) {
+            merged.predictions[username] = {};
+        }
+        for (const matchKey in predictions[username]) {
+            const localPred = predictions[username][matchKey];
+            const cloudPred = cloudData.predictions[username]?.[matchKey];
+            
+            if (cloudPred) {
+                // 如果预测在两处都存在，选择时间戳更新的
+                const localTime = new Date(localPred.timestamp);
+                const cloudTime = new Date(cloudPred.timestamp);
+                merged.predictions[username][matchKey] = localTime > cloudTime ? localPred : cloudPred;
+            } else {
+                merged.predictions[username][matchKey] = localPred;
+            }
+        }
+    }
+    
+    // 3. 融合比赛结果数据（保留所有结果）
+    merged.matchResults = { ...cloudData.matchResults };
+    for (const matchKey in matchResults) {
+        const localResult = matchResults[matchKey];
+        const cloudResult = cloudData.matchResults[matchKey];
+        
+        if (cloudResult) {
+            // 如果结果在两处都存在，选择时间戳更新的
+            const localTime = new Date(localResult.timestamp);
+            const cloudTime = new Date(cloudResult.timestamp);
+            merged.matchResults[matchKey] = localTime > cloudTime ? localResult : cloudResult;
+        } else {
+            merged.matchResults[matchKey] = localResult;
+        }
+    }
+    
+    // 4. 融合排行榜数据（重新计算）
+    merged.leaderboard = [];
+    const allLeaderboardItems = [...(cloudData.leaderboard || []), ...leaderboard];
+    const leaderboardMap = new Map();
+    
+    for (const item of allLeaderboardItems) {
+        if (leaderboardMap.has(item.username)) {
+            // 如果用户已存在，合并轮次数据
+            const existing = leaderboardMap.get(item.username);
+            const existingRounds = new Map(existing.rounds.map(r => [r.round, r]));
+            const newRounds = new Map(item.rounds.map(r => [r.round, r]));
+            
+            // 合并轮次数据
+            for (const [round, roundData] of newRounds) {
+                existingRounds.set(round, roundData);
+            }
+            
+            existing.rounds = Array.from(existingRounds.values());
+            existing.totalScore = existing.rounds.reduce((sum, r) => sum + r.score, 0);
+        } else {
+            leaderboardMap.set(item.username, { ...item });
+        }
+    }
+    
+    merged.leaderboard = Array.from(leaderboardMap.values()).sort((a, b) => b.totalScore - a.totalScore);
+    
+    // 5. 融合历史记录（保留所有轮次）
+    merged.history = { ...cloudData.history, ...history };
+    
+    // 6. 融合轮次数据（选择最大的轮次号）
+    merged.currentRound = Math.max(cloudData.currentRound || 1, currentRound);
+    
+    // 7. 融合截止时间（保留所有轮次的截止时间）
+    merged.deadlines = { ...cloudData.deadlines, ...deadlines };
+    
+    // 8. 融合预设比赛（保留所有轮次的比赛）
+    merged.scheduledMatches = { ...cloudData.scheduledMatches };
+    for (const round in scheduledMatches) {
+        if (!merged.scheduledMatches[round]) {
+            merged.scheduledMatches[round] = [];
+        }
+        
+        const cloudMatches = cloudData.scheduledMatches[round] || [];
+        const localMatches = scheduledMatches[round] || [];
+        
+        // 合并比赛，避免重复
+        const matchMap = new Map();
+        
+        // 添加云端比赛
+        for (const match of cloudMatches) {
+            const key = `${match.team1}_${match.team2}`;
+            matchMap.set(key, match);
+        }
+        
+        // 添加本地比赛（如果不存在）
+        for (const match of localMatches) {
+            const key = `${match.team1}_${match.team2}`;
+            if (!matchMap.has(key)) {
+                matchMap.set(key, match);
+            }
+        }
+        
+        merged.scheduledMatches[round] = Array.from(matchMap.values());
+    }
+    
+    return merged;
 }
