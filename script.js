@@ -47,6 +47,9 @@ async function saveDataToGist() {
             scheduledMatches
         };
         
+        console.log('准备保存数据到Gist，用户数:', Object.keys(users).length);
+        console.log('用户列表:', Object.keys(users));
+        
         const gistData = {
             description: 'League Score System Data',
             public: false,
@@ -63,6 +66,9 @@ async function saveDataToGist() {
         
         const method = GIST_CONFIG.gistId ? 'PATCH' : 'POST';
         
+        console.log('使用URL:', url);
+        console.log('使用方法:', method);
+        
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -78,17 +84,24 @@ async function saveDataToGist() {
                 // 第一次创建，保存gist ID
                 GIST_CONFIG.gistId = result.id;
                 localStorage.setItem('leagueScoreGistId', result.id);
+                console.log('新创建的Gist ID:', result.id);
             }
-            console.log('数据已保存到GitHub Gist');
+            console.log('数据已成功保存到GitHub Gist');
+            console.log('保存后的用户数:', Object.keys(users).length);
+            return true;
         } else {
-            console.error('保存到GitHub Gist失败:', response.statusText);
+            const errorText = await response.text();
+            console.error('保存到GitHub Gist失败:', response.status, response.statusText);
+            console.error('错误详情:', errorText);
             // 回退到localStorage
             saveDataToLocal();
+            return false;
         }
     } catch (error) {
         console.error('保存到GitHub Gist出错:', error);
         // 回退到localStorage
         saveDataToLocal();
+        return false;
     }
 }
 
@@ -200,7 +213,13 @@ function loadDataFromLocal() {
 
 // 统一的保存和加载函数
 async function saveData() {
-    await saveDataToGist();
+    try {
+        const result = await saveDataToGist();
+        return result;
+    } catch (error) {
+        console.error('保存数据失败:', error);
+        return false;
+    }
 }
 
 async function loadData() {
@@ -326,6 +345,9 @@ async function register() {
         return;
     }
     
+    console.log('开始注册新用户:', username);
+    console.log('注册前用户数:', Object.keys(users).length);
+    
     // 创建新用户
     users[username] = {
         password: password,
@@ -338,17 +360,31 @@ async function register() {
         predictions[username] = {};
     }
     
+    console.log('用户创建完成，当前用户数:', Object.keys(users).length);
+    console.log('用户列表:', Object.keys(users));
+    
     // 保存数据
-    await saveData();
+    const saveResult = await saveData();
+    console.log('数据保存结果:', saveResult);
     
     // 强制同步到云端（确保新用户立即可见）
     if (GIST_CONFIG.token) {
         try {
-            await saveDataToGist();
-            console.log('新用户注册后数据已同步到云端');
+            console.log('开始强制同步到云端...');
+            const syncResult = await saveDataToGist();
+            if (syncResult) {
+                console.log('新用户注册后数据已成功同步到云端');
+                alert('注册成功！数据已同步到云端');
+            } else {
+                console.error('同步到云端失败');
+                alert('注册成功！但数据同步到云端失败，请检查网络连接');
+            }
         } catch (error) {
             console.error('同步失败:', error);
+            alert('注册成功！但数据同步到云端失败，请检查网络连接');
         }
+    } else {
+        alert('注册成功！');
     }
     
     // 如果当前有管理员登录，自动更新管理员界面
@@ -361,7 +397,6 @@ async function register() {
     document.getElementById('regPassword').value = '';
     document.getElementById('regConfirmPassword').value = '';
     
-    alert('注册成功！');
     showLogin();
 }
 
@@ -2167,5 +2202,47 @@ function loadSavedToken() {
         if (gistIdInput) {
             gistIdInput.value = savedGistId;
         }
+    }
+}
+
+// 强制同步所有数据到云端
+async function forceSyncAllData() {
+    if (!GIST_CONFIG.token) {
+        alert('请先配置GitHub Token');
+        return;
+    }
+    
+    if (!GIST_CONFIG.gistId) {
+        alert('请先配置Gist ID');
+        return;
+    }
+    
+    try {
+        console.log('开始强制同步所有数据...');
+        console.log('当前本地用户数:', Object.keys(users).length);
+        console.log('当前本地用户列表:', Object.keys(users));
+        
+        // 强制保存到云端
+        const result = await saveDataToGist();
+        
+        if (result) {
+            console.log('强制同步成功！');
+            alert('数据同步成功！');
+            
+            // 更新状态显示
+            updateSyncStatus();
+            
+            // 如果当前是管理员，刷新用户列表
+            if (currentUser && isAdmin) {
+                updateUserList();
+                updateUserStats();
+            }
+        } else {
+            console.error('强制同步失败');
+            alert('数据同步失败，请检查网络连接和Token配置');
+        }
+    } catch (error) {
+        console.error('强制同步出错:', error);
+        alert('数据同步出错: ' + error.message);
     }
 }
