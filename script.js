@@ -2322,7 +2322,27 @@ function mergeData(cloudData) {
     console.log('本地用户数:', Object.keys(users).length);
     
     // 1. 融合用户数据（合并所有用户，不覆盖）
-    merged.users = { ...cloudData.users, ...users };
+    merged.users = {};
+
+    // 先放入云端的用户
+    for (const username in cloudData.users) {
+        merged.users[username] = { ...cloudData.users[username] };
+    }
+    
+    // 再合并本地用户
+    for (const username in users) {
+        if (!merged.users[username]) {
+            // 云端没有，直接添加
+            merged.users[username] = { ...users[username] };
+        } else {
+            // 云端和本地都有 -> 按字段合并
+            merged.users[username] = {
+                ...merged.users[username],
+                ...users[username]
+            };
+        }
+    }
+
     console.log('融合后用户数:', Object.keys(merged.users).length);
     console.log('融合后用户列表:', Object.keys(merged.users));
     
@@ -2443,3 +2463,4 @@ function mergeData(cloudData) {
     
     return merged;
 }
+
