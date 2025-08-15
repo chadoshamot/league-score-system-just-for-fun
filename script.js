@@ -2303,8 +2303,8 @@ function mergeData(cloudData) {
         deadlines: {},
         scheduledMatches: {}
     };
-    
-    // 如果没有云端数据，直接返回本地数据
+
+    // 如果云端没有数据，直接返回本地数据
     if (!cloudData) {
         merged.users = { ...users };
         merged.predictions = { ...predictions };
@@ -2316,151 +2316,139 @@ function mergeData(cloudData) {
         merged.scheduledMatches = { ...scheduledMatches };
         return merged;
     }
-    
+
     console.log('开始融合数据...');
     console.log('云端用户数:', Object.keys(cloudData.users || {}).length);
     console.log('本地用户数:', Object.keys(users).length);
-    
-    // 1. 融合用户数据（合并所有用户，不覆盖）
-    merged.users = {};
 
-    // 先放入云端的用户
-    for (const username in cloudData.users) {
+    // 1. 融合用户数据（字段级合并）
+    for (const username in cloudData.users || {}) {
         merged.users[username] = { ...cloudData.users[username] };
     }
-    
-    // 再合并本地用户
-    for (const username in users) {
+    for (const username in users || {}) {
         if (!merged.users[username]) {
-            // 云端没有，直接添加
             merged.users[username] = { ...users[username] };
         } else {
-            // 云端和本地都有 -> 按字段合并
             merged.users[username] = {
                 ...merged.users[username],
                 ...users[username]
             };
         }
     }
-
     console.log('融合后用户数:', Object.keys(merged.users).length);
-    console.log('融合后用户列表:', Object.keys(merged.users));
-    
-    // 2. 融合预测数据（合并所有预测，不覆盖）
-    merged.predictions = { ...cloudData.predictions };
-    for (const username in predictions) {
-        if (!merged.predictions[username]) {
-            merged.predictions[username] = {};
-        }
-        for (const matchKey in predictions[username]) {
-            const localPred = predictions[username][matchKey];
-            const cloudPred = cloudData.predictions[username]?.[matchKey];
-            
-            if (cloudPred) {
-                // 如果预测在两处都存在，选择时间戳更新的
-                const localTime = new Date(localPred.timestamp);
+
+    // 2. 融合预测数据（按时间戳）
+    merged.predictions = {};
+    const allUsernames = new Set([
+        ...Object.keys(cloudData.predictions || {}),
+        ...Object.keys(predictions || {})
+    ]);
+    for (const username of allUsernames) {
+        merged.predictions[username] = {};
+        const cloudPreds = cloudData.predictions?.[username] || {};
+        const localPreds = predictions?.[username] || {};
+
+        const allMatches = new Set([
+            ...Object.keys(cloudPreds),
+            ...Object.keys(localPreds)
+        ]);
+
+        for (const matchKey of allMatches) {
+            const cloudPred = cloudPreds[matchKey];
+            const localPred = localPreds[matchKey];
+
+            if (cloudPred && localPred) {
                 const cloudTime = new Date(cloudPred.timestamp);
-                merged.predictions[username][matchKey] = localTime > cloudTime ? localPred : cloudPred;
-                console.log(`用户 ${username} 的预测 ${matchKey} 选择时间戳更新的版本`);
+                const localTime = new Date(localPred.timestamp);
+                merged.predictions[username][matchKey] =
+                    localTime > cloudTime ? localPred : cloudPred;
             } else {
-                // 本地独有的预测，直接添加
-                merged.predictions[username][matchKey] = localPred;
-                console.log(`添加本地独有的预测: 用户 ${username}, 比赛 ${matchKey}`);
+                merged.predictions[username][matchKey] = cloudPred || localPred;
             }
         }
     }
-    
-    // 3. 融合比赛结果数据（合并所有结果，不覆盖）
-    merged.matchResults = { ...cloudData.matchResults };
-    for (const matchKey in matchResults) {
-        const localResult = matchResults[matchKey];
-        const cloudResult = cloudData.matchResults[matchKey];
-        
-        if (cloudResult) {
-            // 如果结果在两处都存在，选择时间戳更新的
-            const localTime = new Date(localResult.timestamp);
+
+    // 3. 融合比赛结果数据（按时间戳）
+    merged.matchResults = {};
+    const allMatchKeys = new Set([
+        ...Object.keys(cloudData.matchResults || {}),
+        ...Object.keys(matchResults || {})
+    ]);
+    for (const matchKey of allMatchKeys) {
+        const cloudResult = cloudData.matchResults?.[matchKey];
+        const localResult = matchResults?.[matchKey];
+
+        if (cloudResult && localResult) {
             const cloudTime = new Date(cloudResult.timestamp);
-            merged.matchResults[matchKey] = localTime > cloudTime ? localResult : cloudResult;
-            console.log(`比赛结果 ${matchKey} 选择时间戳更新的版本`);
+            const localTime = new Date(localResult.timestamp);
+            merged.matchResults[matchKey] =
+                localTime > cloudTime ? localResult : cloudResult;
         } else {
-            // 本地独有的结果，直接添加
-            merged.matchResults[matchKey] = localResult;
-            console.log(`添加本地独有的比赛结果: ${matchKey}`);
+            merged.matchResults[matchKey] = cloudResult || localResult;
         }
     }
-    
-    // 4. 融合排行榜数据（重新计算）
-    merged.leaderboard = [];
-    const allLeaderboardItems = [...(cloudData.leaderboard || []), ...leaderboard];
+
+    // 4. 融合排行榜数据（重新计算总分）
+    const allLeaderboardItems = [
+        ...(cloudData.leaderboard || []),
+        ...(leaderboard || [])
+    ];
     const leaderboardMap = new Map();
-    
     for (const item of allLeaderboardItems) {
         if (leaderboardMap.has(item.username)) {
-            // 如果用户已存在，合并轮次数据
             const existing = leaderboardMap.get(item.username);
             const existingRounds = new Map(existing.rounds.map(r => [r.round, r]));
             const newRounds = new Map(item.rounds.map(r => [r.round, r]));
-            
-            // 合并轮次数据
             for (const [round, roundData] of newRounds) {
                 existingRounds.set(round, roundData);
             }
-            
             existing.rounds = Array.from(existingRounds.values());
             existing.totalScore = existing.rounds.reduce((sum, r) => sum + r.score, 0);
         } else {
             leaderboardMap.set(item.username, { ...item });
         }
     }
-    
-    merged.leaderboard = Array.from(leaderboardMap.values()).sort((a, b) => b.totalScore - a.totalScore);
-    
-    // 5. 融合历史记录（保留所有轮次）
+    merged.leaderboard = Array.from(leaderboardMap.values())
+        .sort((a, b) => b.totalScore - a.totalScore);
+
+    // 5. 历史记录（保留全部）
     merged.history = { ...cloudData.history, ...history };
-    
-    // 6. 融合轮次数据（选择最大的轮次号）
+
+    // 6. 当前轮次（取最大值）
     merged.currentRound = Math.max(cloudData.currentRound || 1, currentRound);
-    
-    // 7. 融合截止时间（保留所有轮次的截止时间）
+
+    // 7. 截止时间（保留全部）
     merged.deadlines = { ...cloudData.deadlines, ...deadlines };
-    
-    // 8. 融合预设比赛（保留所有轮次的比赛）
-    merged.scheduledMatches = { ...cloudData.scheduledMatches };
-    for (const round in scheduledMatches) {
-        if (!merged.scheduledMatches[round]) {
-            merged.scheduledMatches[round] = [];
-        }
-        
-        const cloudMatches = cloudData.scheduledMatches[round] || [];
-        const localMatches = scheduledMatches[round] || [];
-        
-        // 合并比赛，避免重复
+
+    // 8. 预设比赛（按场次合并）
+    merged.scheduledMatches = {};
+    const allRounds = new Set([
+        ...Object.keys(cloudData.scheduledMatches || {}),
+        ...Object.keys(scheduledMatches || {})
+    ]);
+    for (const round of allRounds) {
+        const cloudMatches = cloudData.scheduledMatches?.[round] || [];
+        const localMatches = scheduledMatches?.[round] || [];
         const matchMap = new Map();
-        
-        // 添加云端比赛
         for (const match of cloudMatches) {
             const key = `${match.team1}_${match.team2}`;
             matchMap.set(key, match);
         }
-        
-        // 添加本地比赛（如果不存在）
         for (const match of localMatches) {
             const key = `${match.team1}_${match.team2}`;
             if (!matchMap.has(key)) {
                 matchMap.set(key, match);
             }
         }
-        
         merged.scheduledMatches[round] = Array.from(matchMap.values());
     }
-    
+
     console.log('数据融合完成！');
     console.log('最终用户数:', Object.keys(merged.users).length);
     console.log('最终预测数:', Object.keys(merged.predictions).length);
     console.log('最终比赛结果数:', Object.keys(merged.matchResults).length);
     console.log('最终排行榜数:', merged.leaderboard.length);
     console.log('最终历史记录轮次数:', Object.keys(merged.history).length);
-    
+
     return merged;
 }
-
