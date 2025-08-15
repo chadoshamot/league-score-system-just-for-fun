@@ -1,0 +1,409 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft YaHei', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+#app {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.section {
+    background: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 登录和注册样式 */
+h1, h2, h3, h4 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #4a5568;
+}
+
+h1 {
+    font-size: 2.5em;
+    margin-bottom: 30px;
+    color: #2d3748;
+}
+
+.login-form, .register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+input[type="text"], input[type="password"], input[type="number"] {
+    padding: 12px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+button {
+    padding: 12px 20px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover {
+    background: #5a67d8;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+/* 主界面样式 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.user-controls {
+    display: flex;
+    gap: 10px;
+}
+
+#predictionSection, #leaderboardSection, #historySection {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.match-input, .match-result-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.match-input span, .match-result-input span {
+    font-weight: bold;
+    color: #667eea;
+    font-size: 18px;
+}
+
+/* 预测和结果列表样式 */
+#predictionsContainer, #matchResultsContainer, #leaderboardContainer, #historyContainer, #userListContainer {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 100px;
+}
+
+.prediction-item, .match-result-item, .leaderboard-item, .history-item, .user-item {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.prediction-item .match-info, .match-result-item .match-info {
+    flex: 1;
+}
+
+.prediction-item .actions, .match-result-item .actions, .user-item .actions {
+    display: flex;
+    gap: 10px;
+}
+
+.delete-btn {
+    background: #e53e3e;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+.delete-btn:hover {
+    background: #c53030;
+}
+
+.edit-btn {
+    background: #38a169;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+.edit-btn:hover {
+    background: #2f855a;
+}
+
+/* 管理员面板样式 */
+.admin-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.admin-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.user-search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* 排行榜样式 */
+.leaderboard-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background: #e2e8f0;
+    color: #4a5568;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    background: #667eea;
+    color: white;
+}
+
+.tab-btn:hover {
+    background: #5a67d8;
+    color: white;
+}
+
+.leaderboard-content {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 100px;
+}
+
+.round-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+
+.round-selector select {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.round-selector label {
+    font-weight: bold;
+    color: #4a5568;
+}
+
+/* 轮次管理样式 */
+.round-info {
+    background: #e6fffa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    border: 2px solid #38b2ac;
+}
+
+.round-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.rounds-list {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.round-item {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border-left: 4px solid #38b2ac;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.round-item .round-info {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+}
+
+.round-item .round-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.edit-result-btn {
+    background: #3182ce;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+.edit-result-btn:hover {
+    background: #2c5aa0;
+}
+
+.match-result-edit {
+    background: #f0fff4;
+    border: 2px solid #38a169;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.match-result-edit input {
+    margin: 5px;
+}
+
+/* DDL和预测修改样式 */
+.deadline-info {
+    background: #fff3cd;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 2px solid #ffc107;
+    text-align: center;
+}
+
+.deadline-setting {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.deadline-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.deadline-input label {
+    font-weight: bold;
+    color: #495057;
+}
+
+.deadline-input input {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.current-deadline {
+    background: #e7f3ff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #007bff;
+    text-align: center;
+    margin-top: 15px;
+}
+
+.prediction-edit {
+    background: #f0fff4;
+    border: 2px solid #38a169;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.prediction-edit input {
+    margin: 5px;
+    width: 80px;
+}
+
+.deadline-expired {
+    background: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.deadline-active {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .match-input, .match-result-input {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .header {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .admin-controls {
+        flex-direction: column;
+    }
+    
+    .prediction-item, .match-result-item, .leaderboard-item, .history-item, .user-item {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}
