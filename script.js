@@ -2596,7 +2596,7 @@ async function loadDataFromGist() {
             return;
         }
 
-        // 读取云端，和本地进行“融合”，然后落地到内存
+        // 读取云端，和本地进行"融合"，然后落地到内存
         const cloudData = JSON.parse(file.content);
         const merged = mergeData(cloudData);
 
@@ -2613,7 +2613,7 @@ async function loadDataFromGist() {
             scheduledMatches[currentRound] = [];
         }
 
-        // 可选：若融合结果与云端不同，则把融合结果“回推”一次，保证云端也统一
+        // 可选：若融合结果与云端不同，则把融合结果"回推"一次，保证云端也统一
         // （简单判断：用户数或键集合不同就回推；严格可以做深度比较）
         const cloudUsersCount = Object.keys(cloudData.users || {}).length;
         const localUsersCount = Object.keys(users || {}).length;
@@ -4769,21 +4769,21 @@ function toDate(ts) {
     return isNaN(d.getTime()) ? new Date(0) : d;
 }
 
-// 合并两个“用户对象”字段（cloud 与 local），带 updatedAt 优先级（可选）
+// 合并两个"用户对象"字段（cloud 与 local），带 updatedAt 优先级（可选）
 // 规则：
 // - 若双方都有某字段：
 //     * 若任一侧含有 updatedAt（或该字段本身含 timestamp/updatedAt），取较新的；
-//     * 否则优先取“非空值”，再退化为“local 覆盖 cloud”。
+//     * 否则优先取"非空值"，再退化为"local 覆盖 cloud"。
 // - 若只有一侧有字段：直接取那侧。
 function mergeUserRecord(cloudUser = {}, localUser = {}) {
     const merged = { ...cloudUser }; // 先拷贝云端
     const cloudUpdated = toDate(cloudUser.updatedAt);
     const localUpdated = toDate(localUser.updatedAt);
 
-    // 先决定“整对象层面”的新旧
+    // 先决定"整对象层面"的新旧
     const preferLocalObject = localUpdated > cloudUpdated;
 
-    // 遍历所有字段做“字段级”的选择
+    // 遍历所有字段做"字段级"的选择
     const allKeys = new Set([...Object.keys(cloudUser), ...Object.keys(localUser)]);
     for (const key of allKeys) {
         // 跳过 updatedAt，最后统一处理
@@ -4827,7 +4827,7 @@ function mergeUserRecord(cloudUser = {}, localUser = {}) {
     return merged;
 }
 
-// 为 scheduledMatches 生成“更稳”的去重 key
+// 为 scheduledMatches 生成"更稳"的去重 key
 function matchKeyOf(match) {
     if (!match) return '';
     if (match.matchId) return String(match.matchId);
@@ -4866,16 +4866,14 @@ function mergeData(cloudData) {
         };
     }
 
-    // 1) users：按“用户名聚合”，用 mergeUserRecord 字段级融合
-    const allUsernames = new Set([
-        ...Object.keys(cloudData.users || {}),
-        ...Object.keys(users || {})
-    ]);
-    for (const name of allUsernames) {
-        merged.users[name] = mergeUserRecord(
-            cloudData.users?.[name],
-            users?.[name]
-        );
+    // 1) users：简单合并所有用户，不进行字段级融合
+    // 先添加云端的所有用户
+    for (const username in cloudData.users || {}) {
+        merged.users[username] = { ...cloudData.users[username] };
+    }
+    // 再添加本地的所有用户（如果用户名冲突，本地覆盖云端）
+    for (const username in users || {}) {
+        merged.users[username] = { ...users[username] };
     }
 
     // 2) predictions：按用户名&比赛键，基于 timestamp 取新
@@ -4941,7 +4939,7 @@ function mergeData(cloudData) {
         }))
         .sort((a, b) => b.totalScore - a.totalScore);
 
-    // 5) history：保留全部，冲突时按“时间较新”或“本地优先”
+    // 5) history：保留全部，冲突时按"时间较新"或"本地优先"
     // 如果 history[round] 是对象/数组结构，可在此按需再细化；这里采用本地优先覆盖
     merged.history = { ...cloudData.history, ...history };
 
