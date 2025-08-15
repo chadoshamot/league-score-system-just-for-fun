@@ -2032,6 +2032,13 @@ function saveSyncConfig() {
         return;
     }
     
+    // 检查是否已有Gist ID
+    const existingGistId = localStorage.getItem('leagueScoreGistId');
+    if (existingGistId) {
+        GIST_CONFIG.gistId = existingGistId;
+        localStorage.setItem('leagueScoreGistId', existingGistId);
+    }
+    
     GIST_CONFIG.token = token;
     localStorage.setItem('githubToken', token);
     
@@ -2130,14 +2137,20 @@ function debugSyncStatus() {
     }
 }
 
-// 页面加载时加载保存的token
+// 页面加载时加载保存的token和Gist ID
 function loadSavedToken() {
     const savedToken = localStorage.getItem('githubToken');
+    const savedGistId = localStorage.getItem('leagueScoreGistId');
+    
     if (savedToken) {
         GIST_CONFIG.token = savedToken;
         const tokenInput = document.getElementById('githubToken');
         if (tokenInput) {
             tokenInput.value = savedToken;
         }
+    }
+    
+    if (savedGistId) {
+        GIST_CONFIG.gistId = savedGistId;
     }
 }
