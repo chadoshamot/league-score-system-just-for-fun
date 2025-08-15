@@ -811,3 +811,80 @@ button:active {
         justify-content: center;
     }
 }
+
+/* 数据同步配置样式 */
+.sync-config {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.config-item {
+    margin-bottom: 20px;
+}
+
+.config-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #495057;
+}
+
+.config-item input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.config-item small {
+    display: block;
+    margin-top: 5px;
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.config-item small a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.config-item small a:hover {
+    text-decoration: underline;
+}
+
+.config-item button {
+    margin-right: 10px;
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.config-item button:hover {
+    background: #0056b3;
+}
+
+.sync-status {
+    margin-top: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.sync-status p {
+    margin: 5px 0;
+    color: #495057;
+}
+
+.sync-status span {
+    font-weight: bold;
+}

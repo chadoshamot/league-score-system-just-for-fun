@@ -115,6 +115,7 @@
                 <button onclick="showMatchResults()">输入比赛结果</button>
                 <button onclick="showRoundManagement()">轮次管理</button>
                 <button onclick="showUserManagement()">用户管理</button>
+                <button onclick="showDataSync()">数据同步配置</button>
                 <button onclick="calculateScores()">计算本轮得分</button>
             </div>
 
@@ -216,6 +217,27 @@
                 <div id="userList">
                     <h4>用户列表</h4>
                     <div id="userListContainer"></div>
+                </div>
+            </div>
+
+            <!-- 数据同步配置 -->
+            <div id="dataSyncSection" class="admin-panel hidden">
+                <h3>数据同步配置</h3>
+                <div class="sync-config">
+                    <div class="config-item">
+                        <label>GitHub Personal Access Token:</label>
+                        <input type="password" id="githubToken" placeholder="请输入你的GitHub Token">
+                        <small>用于跨设备数据同步。访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Token设置</a> 创建token，需要勾选gist权限</small>
+                    </div>
+                    <div class="config-item">
+                        <button onclick="saveSyncConfig()">保存配置</button>
+                        <button onclick="testSync()">测试同步</button>
+                        <button onclick="clearSyncConfig()">清除配置</button>
+                    </div>
+                    <div class="sync-status">
+                        <p>当前状态: <span id="syncStatus">未配置</span></p>
+                        <p>Gist ID: <span id="gistIdDisplay">未创建</span></p>
+                    </div>
                 </div>
             </div>
         </div>

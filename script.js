@@ -13,23 +13,136 @@ let scheduledMatches = {}; // 存储每轮的预设比赛对阵
 // 管理员密码（你可以修改这个密码）
 const ADMIN_PASSWORD = "admin123";
 
-// 初始化
-document.addEventListener('DOMContentLoaded', function() {
-    loadData();
-    showLogin();
+// GitHub Gist 配置（用于跨设备数据同步）
+const GIST_CONFIG = {
+    // 你需要创建一个GitHub Personal Access Token，并在这里填入
+    // 访问 https://github.com/settings/tokens 创建token
+    // 需要勾选 gist 权限
+    token: '', // 请填入你的GitHub Personal Access Token
     
-    // 确保数据加载完成后界面正确显示
-    setTimeout(() => {
-        if (currentUser && isAdmin) {
-            updateAdminInterface();
-        } else if (currentUser) {
-            updateMainInterface();
-        }
-    }, 100);
-});
+    // Gist ID，第一次使用时会自动创建
+    gistId: localStorage.getItem('leagueScoreGistId') || '',
+    
+    // 文件名
+    filename: 'league-score-data.json'
+};
 
-// 数据存储和加载
-function saveData() {
+// GitHub Gist API 函数
+async function saveDataToGist() {
+    if (!GIST_CONFIG.token) {
+        // 如果没有配置token，回退到localStorage
+        saveDataToLocal();
+        return;
+    }
+    
+    try {
+        const data = {
+            users,
+            predictions,
+            matchResults,
+            leaderboard,
+            history,
+            currentRound,
+            deadlines,
+            scheduledMatches
+        };
+        
+        const gistData = {
+            description: 'League Score System Data',
+            public: false,
+            files: {
+                [GIST_CONFIG.filename]: {
+                    content: JSON.stringify(data, null, 2)
+                }
+            }
+        };
+        
+        const url = GIST_CONFIG.gistId 
+            ? `https://api.github.com/gists/${GIST_CONFIG.gistId}`
+            : 'https://api.github.com/gists';
+        
+        const method = GIST_CONFIG.gistId ? 'PATCH' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `token ${GIST_CONFIG.token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(gistData)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (!GIST_CONFIG.gistId) {
+                // 第一次创建，保存gist ID
+                GIST_CONFIG.gistId = result.id;
+                localStorage.setItem('leagueScoreGistId', result.id);
+            }
+            console.log('数据已保存到GitHub Gist');
+        } else {
+            console.error('保存到GitHub Gist失败:', response.statusText);
+            // 回退到localStorage
+            saveDataToLocal();
+        }
+    } catch (error) {
+        console.error('保存到GitHub Gist出错:', error);
+        // 回退到localStorage
+        saveDataToLocal();
+    }
+}
+
+async function loadDataFromGist() {
+    if (!GIST_CONFIG.token || !GIST_CONFIG.gistId) {
+        // 如果没有配置token或gist ID，从localStorage加载
+        loadDataFromLocal();
+        return;
+    }
+    
+    try {
+        const response = await fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
+            headers: {
+                'Authorization': `token ${GIST_CONFIG.token}`,
+            }
+        });
+        
+        if (response.ok) {
+            const gist = await response.json();
+            const file = gist.files[GIST_CONFIG.filename];
+            
+            if (file && file.content) {
+                const data = JSON.parse(file.content);
+                users = data.users || {};
+                predictions = data.predictions || {};
+                matchResults = data.matchResults || {};
+                leaderboard = data.leaderboard || [];
+                history = data.history || {};
+                currentRound = data.currentRound || 1;
+                deadlines = data.deadlines || {};
+                scheduledMatches = data.scheduledMatches || {};
+                
+                // 确保scheduledMatches[currentRound]存在
+                if (!scheduledMatches[currentRound]) {
+                    scheduledMatches[currentRound] = [];
+                }
+                
+                console.log('数据已从GitHub Gist加载');
+            } else {
+                console.log('GitHub Gist中没有找到数据文件，使用默认数据');
+                loadDataFromLocal();
+            }
+        } else {
+            console.error('从GitHub Gist加载失败:', response.statusText);
+            loadDataFromLocal();
+        }
+    } catch (error) {
+        console.error('从GitHub Gist加载出错:', error);
+        loadDataFromLocal();
+    }
+}
+
+// 原有的localStorage函数（作为备用）
+function saveDataToLocal() {
     localStorage.setItem('leagueScoreData', JSON.stringify({
         users,
         predictions,
@@ -42,7 +155,7 @@ function saveData() {
     }));
 }
 
-function loadData() {
+function loadDataFromLocal() {
     const data = localStorage.getItem('leagueScoreData');
     if (data) {
         try {
@@ -53,8 +166,8 @@ function loadData() {
             leaderboard = parsed.leaderboard || [];
             history = parsed.history || {};
             currentRound = parsed.currentRound || 1;
-            deadlines = parsed.deadlines || {}; // 加载截止时间
-            scheduledMatches = parsed.scheduledMatches || {}; // 加载预设比赛
+            deadlines = parsed.deadlines || {};
+            scheduledMatches = parsed.scheduledMatches || {};
             
             // 确保scheduledMatches[currentRound]存在
             if (!scheduledMatches[currentRound]) {
@@ -84,6 +197,30 @@ function loadData() {
         saveData();
     }
 }
+
+// 统一的保存和加载函数
+async function saveData() {
+    await saveDataToGist();
+}
+
+async function loadData() {
+    await loadDataFromGist();
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadData();
+    showLogin();
+    
+    // 确保数据加载完成后界面正确显示
+    setTimeout(() => {
+        if (currentUser && isAdmin) {
+            updateAdminInterface();
+        } else if (currentUser) {
+            updateMainInterface();
+        }
+    }, 100);
+});
 
 // 界面切换函数
 function showLogin() {
@@ -155,7 +292,7 @@ function login() {
     }
 }
 
-function register() {
+async function register() {
     const username = document.getElementById('regUsername').value;
     const password = document.getElementById('regPassword').value;
     const confirmPassword = document.getElementById('regConfirmPassword').value;
@@ -188,7 +325,7 @@ function register() {
     }
     
     // 保存数据
-    saveData();
+    await saveData();
     
     // 如果当前有管理员登录，自动更新管理员界面
     if (currentUser && isAdmin) {
@@ -211,7 +348,7 @@ function logout() {
 }
 
 // 预测功能
-function addPrediction() {
+async function addPrediction() {
     // 检查是否超过截止时间
     if (isDeadlineExpired(currentRound)) {
         alert('预测截止时间已过，无法添加或修改预测！');
@@ -251,7 +388,7 @@ function addPrediction() {
         timestamp: new Date().toISOString()
     };
     
-    saveData();
+    await saveData();
     
     // 清空输入框
     document.getElementById('score1').value = '';
@@ -275,7 +412,7 @@ function addPrediction() {
 }
 
 // 管理员功能
-function addMatchResult() {
+async function addMatchResult() {
     const team1 = document.getElementById('resultTeam1').value;
     const team2 = document.getElementById('resultTeam2').value;
     const score1 = parseInt(document.getElementById('resultScore1').value);
@@ -296,7 +433,7 @@ function addMatchResult() {
         timestamp: new Date().toISOString()
     };
     
-    saveData();
+    await saveData();
     
     // 清空输入框
     document.getElementById('resultTeam1').value = '';
@@ -311,7 +448,7 @@ function addMatchResult() {
 }
 
 // 修改比赛结果
-function editMatchResult(matchKey) {
+async function editMatchResult(matchKey) {
     const result = matchResults[matchKey];
     if (!result) {
         alert('比赛结果不存在');
@@ -338,7 +475,7 @@ function editMatchResult(matchKey) {
     matchResults[matchKey].score2 = score2;
     matchResults[matchKey].timestamp = new Date().toISOString();
     
-    saveData();
+    await saveData();
     updateAdminInterface();
     
     alert('比赛结果修改成功！');
@@ -1856,3 +1993,94 @@ function inputMatchResultFromScheduled(team1, team2) {
     
     alert('比赛结果添加成功！');
 }
+
+// 数据同步配置相关函数
+function showDataSync() {
+    hideAdminPanels();
+    document.getElementById('dataSyncSection').classList.remove('hidden');
+    updateSyncStatus();
+}
+
+function saveSyncConfig() {
+    const token = document.getElementById('githubToken').value.trim();
+    if (!token) {
+        alert('请输入GitHub Personal Access Token');
+        return;
+    }
+    
+    GIST_CONFIG.token = token;
+    localStorage.setItem('githubToken', token);
+    
+    // 测试token是否有效
+    testSync();
+}
+
+async function testSync() {
+    if (!GIST_CONFIG.token) {
+        alert('请先配置GitHub Token');
+        return;
+    }
+    
+    try {
+        // 测试token有效性
+        const response = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `token ${GIST_CONFIG.token}`,
+            }
+        });
+        
+        if (response.ok) {
+            const user = await response.json();
+            alert(`Token验证成功！用户: ${user.login}`);
+            
+            // 尝试保存当前数据到Gist
+            await saveDataToGist();
+            updateSyncStatus();
+        } else {
+            alert('Token验证失败，请检查Token是否正确');
+        }
+    } catch (error) {
+        alert('测试失败: ' + error.message);
+    }
+}
+
+function clearSyncConfig() {
+    if (confirm('确定要清除同步配置吗？这将删除所有云端数据！')) {
+        GIST_CONFIG.token = '';
+        GIST_CONFIG.gistId = '';
+        localStorage.removeItem('githubToken');
+        localStorage.removeItem('leagueScoreGistId');
+        
+        document.getElementById('githubToken').value = '';
+        updateSyncStatus();
+        alert('同步配置已清除');
+    }
+}
+
+function updateSyncStatus() {
+    const statusElement = document.getElementById('syncStatus');
+    const gistIdElement = document.getElementById('gistIdDisplay');
+    
+    if (GIST_CONFIG.token) {
+        statusElement.textContent = '已配置';
+        statusElement.style.color = 'green';
+    } else {
+        statusElement.textContent = '未配置';
+        statusElement.style.color = 'red';
+    }
+    
+    if (GIST_CONFIG.gistId) {
+        gistIdElement.textContent = GIST_CONFIG.gistId;
+    } else {
+        gistIdElement.textContent = '未创建';
+    }
+}
+
+// 页面加载时加载保存的token
+document.addEventListener('DOMContentLoaded', function() {
+    const savedToken = localStorage.getItem('githubToken');
+    if (savedToken) {
+        GIST_CONFIG.token = savedToken;
+        document.getElementById('githubToken').value = savedToken;
+    }
+});
