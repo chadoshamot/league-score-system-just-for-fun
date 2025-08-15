@@ -49,16 +49,28 @@
                     <strong>第<span id="currentRoundDisplay2"></span>轮预测截止时间：</strong>
                     <span id="deadlineDisplay">未设置</span>
                 </div>
-                <div id="predictionForm">
-                    <div class="match-input">
-                        <input type="text" id="team1" placeholder="主队名称">
+                
+                <!-- 比赛选择界面 -->
+                <div id="matchSelectionSection">
+                    <h4>选择要预测的比赛</h4>
+                    <div id="scheduledMatchesForPrediction"></div>
+                </div>
+                
+                <!-- 预测输入界面 -->
+                <div id="predictionForm" class="hidden">
+                    <h4>预测比分</h4>
+                    <div class="selected-match-info">
+                        <strong id="selectedMatchDisplay"></strong>
+                    </div>
+                    <div class="score-input">
+                        <label>主队得分：</label>
                         <input type="number" id="score1" placeholder="主队得分" min="0">
-                        <span>VS</span>
+                        <label>客队得分：</label>
                         <input type="number" id="score2" placeholder="客队得分" min="0">
-                        <input type="text" id="team2" placeholder="客队名称">
-                        <button onclick="addPrediction()">添加预测</button>
+                        <button onclick="addPrediction()">提交预测</button>
                     </div>
                 </div>
+                
                 <div id="predictionsList">
                     <h4>我的预测列表</h4>
                     <div id="predictionsContainer"></div>
@@ -133,6 +145,24 @@
                     <button onclick="startNewRound()">开始新轮次</button>
                     <button onclick="resetCurrentRound()">重置当前轮次</button>
                 </div>
+                
+                <!-- 预设比赛对阵 -->
+                <div class="match-schedule-setting">
+                    <h4>预设比赛对阵</h4>
+                    <div class="match-input-group">
+                        <div class="match-input-row">
+                            <input type="text" id="scheduleTeam1" placeholder="主队名称">
+                            <span>VS</span>
+                            <input type="text" id="scheduleTeam2" placeholder="客队名称">
+                            <button onclick="addScheduledMatch()">添加比赛</button>
+                        </div>
+                    </div>
+                    <div class="scheduled-matches">
+                        <h5>本轮比赛安排</h5>
+                        <div id="scheduledMatchesContainer"></div>
+                    </div>
+                </div>
+                
                 <div class="deadline-setting">
                     <h4>设置预测截止时间</h4>
                     <div class="deadline-input">
@@ -156,10 +186,33 @@
             <!-- 用户管理 -->
             <div id="userManagementSection" class="admin-panel hidden">
                 <h3>用户管理</h3>
-                <div class="user-search">
-                    <input type="text" id="searchUser" placeholder="搜索用户名">
-                    <button onclick="searchUser()">搜索</button>
+                
+                <!-- 用户统计 -->
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <strong>总用户数：</strong>
+                        <span id="totalUsersCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <strong>管理员数：</strong>
+                        <span id="adminUsersCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <strong>普通用户数：</strong>
+                        <span id="normalUsersCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <strong>活跃用户数：</strong>
+                        <span id="activeUsersCount">0</span>
+                    </div>
                 </div>
+                
+                <div class="user-search">
+                    <input type="text" id="searchUser" placeholder="搜索用户名" oninput="searchUser()">
+                    <button onclick="searchUser()">搜索</button>
+                    <button onclick="showAllUsers()">显示全部</button>
+                </div>
+                
                 <div id="userList">
                     <h4>用户列表</h4>
                     <div id="userListContainer"></div>

@@ -385,6 +385,145 @@ button:active {
     color: #155724;
 }
 
+/* 预设比赛对阵样式 */
+.match-schedule-setting {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.match-input-group {
+    margin: 15px 0;
+}
+
+.match-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.match-input-row input {
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.scheduled-matches {
+    margin-top: 20px;
+}
+
+.scheduled-match-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 15px;
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.scheduled-match-info {
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.scheduled-match-actions button {
+    margin-left: 10px;
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+/* 比赛选择界面样式 */
+.match-selection-item {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.match-selection-item:hover {
+    border-color: #4299e1;
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.2);
+}
+
+.match-selection-item.selected {
+    border-color: #38a169;
+    background: #f0fff4;
+}
+
+.match-selection-item.predicted {
+    border-color: #e53e3e;
+    background: #fff5f5;
+    opacity: 0.7;
+}
+
+.match-selection-item .match-teams {
+    font-size: 18px;
+    font-weight: bold;
+    color: #2d3748;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.match-selection-item .match-status {
+    text-align: center;
+    font-size: 14px;
+    color: #718096;
+}
+
+.match-selection-item .match-actions {
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* 预测输入界面样式 */
+.selected-match-info {
+    background: #e7f3ff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #007bff;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.score-input {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.score-input label {
+    font-weight: bold;
+    color: #495057;
+}
+
+.score-input input {
+    padding: 10px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 16px;
+    width: 120px;
+    text-align: center;
+}
+
+.score-input button {
+    margin-top: 10px;
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .match-input, .match-result-input {
@@ -405,5 +544,188 @@ button:active {
         flex-direction: column;
         gap: 10px;
         text-align: center;
+    }
+}
+
+/* 用户管理样式 */
+.user-stats {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.stat-item strong {
+    display: block;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.stat-item span {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.user-search {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.user-search input {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.user-search button {
+    padding: 10px 20px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.user-search button:hover {
+    background: #0056b3;
+}
+
+.user-item {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 15px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 300px;
+}
+
+.user-basic {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.user-basic strong {
+    font-size: 18px;
+    color: #2d3748;
+}
+
+.user-role {
+    background: #e2e8f0;
+    color: #4a5568;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.user-details {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    color: #718096;
+    font-size: 14px;
+}
+
+.user-details span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.actions button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.actions .edit-btn {
+    background: #28a745;
+    color: white;
+}
+
+.actions .edit-btn:hover {
+    background: #218838;
+}
+
+.actions .delete-btn {
+    background: #dc3545;
+    color: white;
+}
+
+.actions .delete-btn:hover {
+    background: #c82333;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .user-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .user-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .user-info {
+        min-width: auto;
+    }
+    
+    .user-details {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .actions {
+        justify-content: center;
+    }
+    
+    .user-search {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .user-search input {
+        min-width: auto;
     }
 }

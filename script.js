@@ -8,6 +8,7 @@ let users = {};
 let leaderboard = [];
 let history = {};
 let deadlines = {}; // 存储每轮的预测截止时间
+let scheduledMatches = {}; // 存储每轮的预设比赛对阵
 
 // 管理员密码（你可以修改这个密码）
 const ADMIN_PASSWORD = "admin123";
@@ -27,7 +28,8 @@ function saveData() {
         leaderboard,
         history,
         currentRound,
-        deadlines
+        deadlines,
+        scheduledMatches
     }));
 }
 
@@ -42,6 +44,7 @@ function loadData() {
         history = parsed.history || {};
         currentRound = parsed.currentRound || 1;
         deadlines = parsed.deadlines || {}; // 加载截止时间
+        scheduledMatches = parsed.scheduledMatches || {}; // 加载预设比赛
     }
     
     // 如果没有用户，创建默认管理员账户
@@ -149,13 +152,18 @@ function addPrediction() {
         return;
     }
     
-    const team1 = document.getElementById('team1').value;
-    const team2 = document.getElementById('team2').value;
+    // 检查是否已选择比赛
+    if (!window.selectedMatch) {
+        alert('请先选择要预测的比赛');
+        return;
+    }
+    
+    const { team1, team2 } = window.selectedMatch;
     const score1 = parseInt(document.getElementById('score1').value);
     const score2 = parseInt(document.getElementById('score2').value);
     
-    if (!team1 || !team2 || isNaN(score1) || isNaN(score2)) {
-        alert('请填写完整的比赛信息');
+    if (isNaN(score1) || isNaN(score2)) {
+        alert('请输入有效的比分');
         return;
     }
     
@@ -181,10 +189,19 @@ function addPrediction() {
     updateMainInterface();
     
     // 清空输入框
-    document.getElementById('team1').value = '';
-    document.getElementById('team2').value = '';
     document.getElementById('score1').value = '';
     document.getElementById('score2').value = '';
+    
+    // 隐藏预测表单
+    document.getElementById('predictionForm').classList.add('hidden');
+    
+    // 清除选中的比赛
+    window.selectedMatch = null;
+    
+    // 恢复按钮状态
+    const submitButton = document.querySelector('#predictionForm button');
+    submitButton.textContent = '提交预测';
+    submitButton.onclick = addPrediction;
     
     alert(isUpdate ? '预测修改成功！' : '预测添加成功！');
 }
@@ -335,9 +352,12 @@ function searchUser() {
                 <div class="user-info">
                     <strong>${username}</strong>
                     <span>${users[username].isAdmin ? '(管理员)' : '(普通用户)'}</span>
+                    <span>注册时间: ${new Date(users[username].joinDate).toLocaleDateString('zh-CN')}</span>
                 </div>
                 <div class="actions">
-                    <button class="edit-btn" onclick="editUser('${username}')">编辑</button>
+                    <button class="edit-btn" onclick="editUser('${username}')">编辑用户名</button>
+                    <button class="edit-btn" onclick="editUserPassword('${username}')">修改密码</button>
+                    <button class="edit-btn" onclick="toggleUserAdmin('${username}')">${users[username].isAdmin ? '降级' : '升级'}</button>
                     <button class="delete-btn" onclick="deleteUser('${username}')">删除</button>
                 </div>
             `;
@@ -351,6 +371,11 @@ function editUser(username) {
     if (newUsername && newUsername !== username) {
         if (users[newUsername]) {
             alert('用户名已存在');
+            return;
+        }
+        
+        if (newUsername.trim() === '') {
+            alert('用户名不能为空');
             return;
         }
         
@@ -370,8 +395,52 @@ function editUser(username) {
             leaderboardItem.username = newUsername;
         }
         
+        // 更新历史记录
+        for (const round in history) {
+            const roundData = history[round];
+            const userRoundData = roundData.find(item => item.username === username);
+            if (userRoundData) {
+                userRoundData.username = newUsername;
+            }
+        }
+        
+        // 如果修改的是当前登录用户，更新currentUser
+        if (currentUser === username) {
+            currentUser = newUsername;
+        }
+        
         saveData();
         alert('用户名修改成功！');
+        updateAdminInterface();
+        updateMainInterface();
+    }
+}
+
+function editUserPassword(username) {
+    const newPassword = prompt('请输入新密码:');
+    if (newPassword && newPassword.trim() !== '') {
+        users[username].password = newPassword;
+        saveData();
+        alert('密码修改成功！');
+        updateAdminInterface();
+    } else {
+        alert('密码不能为空');
+    }
+}
+
+function toggleUserAdmin(username) {
+    if (username === 'admin') {
+        alert('默认管理员账户不能修改权限！');
+        return;
+    }
+    
+    const currentStatus = users[username].isAdmin;
+    const action = currentStatus ? '降级为普通用户' : '升级为管理员';
+    
+    if (confirm(`确定要${action} ${username} 吗？`)) {
+        users[username].isAdmin = !currentStatus;
+        saveData();
+        alert(`${action}成功！`);
         updateAdminInterface();
     }
 }
@@ -382,17 +451,107 @@ function deleteUser(username) {
         return;
     }
     
-    if (confirm(`确定要删除用户 ${username} 吗？`)) {
+    if (confirm(`确定要删除用户 ${username} 吗？这将删除该用户的所有预测数据和排行榜记录！`)) {
+        // 删除用户账户
         delete users[username];
-        delete predictions[username];
+        
+        // 删除用户的所有预测
+        if (predictions[username]) {
+            delete predictions[username];
+        }
         
         // 从排行榜中移除
         leaderboard = leaderboard.filter(item => item.username !== username);
+        
+        // 从历史记录中移除
+        for (const round in history) {
+            history[round] = history[round].filter(item => item.username !== username);
+        }
+        
+        // 如果删除的是当前登录用户，强制登出
+        if (currentUser === username) {
+            logout();
+        }
         
         saveData();
         alert('用户删除成功！');
         updateAdminInterface();
     }
+}
+
+// 显示所有用户
+function showAllUsers() {
+    document.getElementById('searchUser').value = '';
+    updateUserList();
+}
+
+// 更新用户统计信息
+function updateUserStats() {
+    const totalUsers = Object.keys(users).length;
+    const adminUsers = Object.values(users).filter(user => user.isAdmin).length;
+    const normalUsers = totalUsers - adminUsers;
+    
+    // 计算活跃用户（有预测记录的用户）
+    const activeUsers = Object.keys(predictions).length;
+    
+    document.getElementById('totalUsersCount').textContent = totalUsers;
+    document.getElementById('adminUsersCount').textContent = adminUsers;
+    document.getElementById('normalUsersCount').textContent = normalUsers;
+    document.getElementById('activeUsersCount').textContent = activeUsers;
+}
+
+// 增强的用户列表更新函数
+function updateUserList() {
+    const container = document.getElementById('userListContainer');
+    container.innerHTML = '';
+    
+    const searchTerm = document.getElementById('searchUser').value.toLowerCase();
+    let displayedUsers = 0;
+    
+    for (const username in users) {
+        // 如果有搜索词，过滤用户
+        if (searchTerm && !username.toLowerCase().includes(searchTerm)) {
+            continue;
+        }
+        
+        displayedUsers++;
+        const userItem = document.createElement('div');
+        userItem.className = 'user-item';
+        
+        // 获取用户统计信息
+        const userPredictions = predictions[username] || {};
+        const predictionCount = Object.keys(userPredictions).length;
+        const userLeaderboard = leaderboard.find(item => item.username === username);
+        const totalScore = userLeaderboard ? userLeaderboard.totalScore : 0;
+        
+        userItem.innerHTML = `
+            <div class="user-info">
+                <div class="user-basic">
+                    <strong>${username}</strong>
+                    <span class="user-role">${users[username].isAdmin ? '(管理员)' : '(普通用户)'}</span>
+                </div>
+                <div class="user-details">
+                    <span>注册时间: ${new Date(users[username].joinDate).toLocaleDateString('zh-CN')}</span>
+                    <span>预测次数: ${predictionCount}</span>
+                    <span>总得分: ${totalScore}</span>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="edit-btn" onclick="editUser('${username}')">编辑用户名</button>
+                <button class="edit-btn" onclick="editUserPassword('${username}')">修改密码</button>
+                <button class="edit-btn" onclick="toggleUserAdmin('${username}')">${users[username].isAdmin ? '降级' : '升级'}</button>
+                <button class="delete-btn" onclick="deleteUser('${username}')">删除</button>
+            </div>
+        `;
+        container.appendChild(userItem);
+    }
+    
+    if (displayedUsers === 0) {
+        container.innerHTML = '<p>没有找到匹配的用户</p>';
+    }
+    
+    // 更新用户统计
+    updateUserStats();
 }
 
 // 界面更新函数
@@ -412,6 +571,16 @@ function updateMainInterface() {
     updateHistory();
     updateRoundSelector();
     updateDeadlineDisplay();
+    updateMatchSelectionDisplay();
+}
+
+function updateAdminInterface() {
+    updateMatchResultsList();
+    updateUserList();
+    updateRoundSelector();
+    updateCurrentRoundDisplay();
+    updateCurrentDeadlineDisplay();
+    updateScheduledMatchesDisplay();
 }
 
 // 排行榜标签页切换
@@ -491,14 +660,6 @@ function updateRoundLeaderboard() {
         `;
         container.appendChild(roundItem);
     });
-}
-
-function updateAdminInterface() {
-    updateMatchResultsList();
-    updateUserList();
-    updateRoundSelector();
-    updateCurrentRoundDisplay();
-    updateCurrentDeadlineDisplay();
 }
 
 function updatePredictionsList() {
@@ -607,27 +768,6 @@ function updateHistory() {
     }
 }
 
-function updateUserList() {
-    const container = document.getElementById('userListContainer');
-    container.innerHTML = '';
-    
-    for (const username in users) {
-        const userItem = document.createElement('div');
-        userItem.className = 'user-item';
-        userItem.innerHTML = `
-            <div class="user-info">
-                <strong>${username}</strong>
-                <span>${users[username].isAdmin ? '(管理员)' : '(普通用户)'}</span>
-            </div>
-            <div class="actions">
-                <button class="edit-btn" onclick="editUser('${username}')">编辑</button>
-                <button class="delete-btn" onclick="deleteUser('${username}')">删除</button>
-            </div>
-        `;
-        container.appendChild(userItem);
-    }
-}
-
 // 删除功能
 function deletePrediction(matchKey) {
     if (confirm('确定要删除这个预测吗？')) {
@@ -658,21 +798,26 @@ function editPrediction(matchKey) {
         return;
     }
     
+    // 显示预测表单
+    document.getElementById('predictionForm').classList.remove('hidden');
+    document.getElementById('selectedMatchDisplay').textContent = `${prediction.team1} VS ${prediction.team2}`;
+    
     // 填充输入框
-    document.getElementById('team1').value = prediction.team1;
-    document.getElementById('team2').value = prediction.team2;
     document.getElementById('score1').value = prediction.score1;
     document.getElementById('score2').value = prediction.score2;
     
-    // 滚动到预测表单
-    document.getElementById('predictionForm').scrollIntoView({ behavior: 'smooth' });
+    // 设置当前选中的比赛
+    window.selectedMatch = { team1: prediction.team1, team2: prediction.team2 };
     
     // 修改按钮文本
-    const addButton = document.querySelector('#predictionForm button');
-    addButton.textContent = '更新预测';
-    addButton.onclick = function() {
+    const submitButton = document.querySelector('#predictionForm button');
+    submitButton.textContent = '更新预测';
+    submitButton.onclick = function() {
         updatePrediction(matchKey);
     };
+    
+    // 滚动到预测表单
+    document.getElementById('predictionForm').scrollIntoView({ behavior: 'smooth' });
 }
 
 function updatePrediction(matchKey) {
@@ -837,6 +982,205 @@ function setDeadline() {
     alert('截止时间设置成功！');
 }
 
+// 预设比赛管理功能
+function addScheduledMatch() {
+    const team1 = document.getElementById('scheduleTeam1').value.trim();
+    const team2 = document.getElementById('scheduleTeam2').value.trim();
+    
+    if (!team1 || !team2) {
+        alert('请输入完整的队伍名称');
+        return;
+    }
+    
+    if (team1 === team2) {
+        alert('主队和客队不能相同');
+        return;
+    }
+    
+    // 检查是否已存在相同对阵
+    const existingMatches = scheduledMatches[currentRound] || [];
+    const matchExists = existingMatches.some(match => 
+        (match.team1 === team1 && match.team2 === team2) ||
+        (match.team1 === team2 && match.team2 === team1)
+    );
+    
+    if (matchExists) {
+        alert('该对阵已存在');
+        return;
+    }
+    
+    // 添加预设比赛
+    if (!scheduledMatches[currentRound]) {
+        scheduledMatches[currentRound] = [];
+    }
+    
+    scheduledMatches[currentRound].push({
+        id: Date.now().toString(),
+        team1: team1,
+        team2: team2,
+        timestamp: new Date().toISOString()
+    });
+    
+    saveData();
+    
+    // 清空输入框
+    document.getElementById('scheduleTeam1').value = '';
+    document.getElementById('scheduleTeam2').value = '';
+    
+    // 更新显示
+    updateScheduledMatchesDisplay();
+    updateMatchSelectionDisplay();
+    
+    alert('比赛对阵添加成功！');
+}
+
+function removeScheduledMatch(matchId) {
+    if (confirm('确定要删除这个比赛对阵吗？')) {
+        scheduledMatches[currentRound] = scheduledMatches[currentRound].filter(match => match.id !== matchId);
+        saveData();
+        
+        // 更新显示
+        updateScheduledMatchesDisplay();
+        updateMatchSelectionDisplay();
+        
+        alert('比赛对阵删除成功！');
+    }
+}
+
+function updateScheduledMatchesDisplay() {
+    const container = document.getElementById('scheduledMatchesContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const matches = scheduledMatches[currentRound] || [];
+    
+    if (matches.length === 0) {
+        container.innerHTML = '<p>暂无预设比赛</p>';
+        return;
+    }
+    
+    matches.forEach(match => {
+        const matchItem = document.createElement('div');
+        matchItem.className = 'scheduled-match-item';
+        matchItem.innerHTML = `
+            <div class="scheduled-match-info">
+                <strong>${match.team1} VS ${match.team2}</strong>
+            </div>
+            <div class="scheduled-match-actions">
+                <button class="delete-btn" onclick="removeScheduledMatch('${match.id}')">删除</button>
+            </div>
+        `;
+        container.appendChild(matchItem);
+    });
+}
+
+function updateMatchSelectionDisplay() {
+    const container = document.getElementById('scheduledMatchesForPrediction');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    const matches = scheduledMatches[currentRound] || [];
+    
+    if (matches.length === 0) {
+        container.innerHTML = '<p>管理员还未设置本轮比赛对阵</p>';
+        return;
+    }
+    
+    matches.forEach(match => {
+        const matchItem = document.createElement('div');
+        matchItem.className = 'match-selection-item';
+        
+        // 检查是否已预测
+        const hasPrediction = predictions[currentUser] && 
+            predictions[currentUser][`${match.team1}_${match.team2}`] &&
+            predictions[currentUser][`${match.team1}_${match.team2}`].round === currentRound;
+        
+        if (hasPrediction) {
+            matchItem.classList.add('predicted');
+        }
+        
+        matchItem.innerHTML = `
+            <div class="match-teams">${match.team1} VS ${match.team2}</div>
+            <div class="match-status">
+                ${hasPrediction ? '已预测' : '未预测'}
+            </div>
+            <div class="match-actions">
+                ${!hasPrediction ? `<button onclick="selectMatchForPrediction('${match.team1}', '${match.team2}')">选择预测</button>` : 
+                `<button onclick="editPrediction('${match.team1}_${match.team2}')">修改预测</button>`}
+            </div>
+        `;
+        container.appendChild(matchItem);
+    });
+}
+
+// 选择比赛进行预测
+function selectMatchForPrediction(team1, team2) {
+    // 检查是否超过截止时间
+    if (isDeadlineExpired(currentRound)) {
+        alert('预测截止时间已过，无法添加或修改预测！');
+        return;
+    }
+    
+    // 显示预测表单
+    document.getElementById('predictionForm').classList.remove('hidden');
+    document.getElementById('selectedMatchDisplay').textContent = `${team1} VS ${team2}`;
+    
+    // 清空输入框
+    document.getElementById('score1').value = '';
+    document.getElementById('score2').value = '';
+    
+    // 滚动到预测表单
+    document.getElementById('predictionForm').scrollIntoView({ behavior: 'smooth' });
+    
+    // 设置当前选中的比赛
+    window.selectedMatch = { team1, team2 };
+}
+
+// 修改预测功能（更新版本）
+function editPrediction(matchKey) {
+    const prediction = predictions[currentUser][matchKey];
+    
+    if (!prediction) {
+        alert('预测不存在');
+        return;
+    }
+    
+    // 检查是否超过截止时间
+    if (isDeadlineExpired(prediction.round)) {
+        alert('预测截止时间已过，无法修改！');
+        return;
+    }
+    
+    // 检查是否是当前轮次
+    if (prediction.round !== currentRound) {
+        alert('只能编辑当前轮次的预测！');
+        return;
+    }
+    
+    // 显示预测表单
+    document.getElementById('predictionForm').classList.remove('hidden');
+    document.getElementById('selectedMatchDisplay').textContent = `${prediction.team1} VS ${prediction.team2}`;
+    
+    // 填充输入框
+    document.getElementById('score1').value = prediction.score1;
+    document.getElementById('score2').value = prediction.score2;
+    
+    // 设置当前选中的比赛
+    window.selectedMatch = { team1: prediction.team1, team2: prediction.team2 };
+    
+    // 修改按钮文本
+    const submitButton = document.querySelector('#predictionForm button');
+    submitButton.textContent = '更新预测';
+    submitButton.onclick = function() {
+        updatePrediction(matchKey);
+    };
+    
+    // 滚动到预测表单
+    document.getElementById('predictionForm').scrollIntoView({ behavior: 'smooth' });
+}
+
 function isDeadlineExpired(round) {
     if (!deadlines[round]) return false;
     
@@ -899,6 +1243,9 @@ function resetCurrentRound() {
         
         // 删除当前轮次的截止时间
         delete deadlines[currentRound];
+        
+        // 删除当前轮次的预设比赛
+        delete scheduledMatches[currentRound];
         
         saveData();
         updateAdminInterface();
