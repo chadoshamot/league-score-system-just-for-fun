@@ -209,6 +209,10 @@ async function loadData() {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async function() {
+    // 先加载保存的token
+    loadSavedToken();
+    
+    // 然后加载数据
     await loadData();
     showLogin();
     
@@ -2076,11 +2080,44 @@ function updateSyncStatus() {
     }
 }
 
+// 调试函数：检查同步状态
+function debugSyncStatus() {
+    console.log('=== 数据同步调试信息 ===');
+    console.log('Token配置:', GIST_CONFIG.token ? '已配置' : '未配置');
+    console.log('Gist ID:', GIST_CONFIG.gistId || '未创建');
+    console.log('本地用户数:', Object.keys(users).length);
+    console.log('本地用户列表:', Object.keys(users));
+    
+    // 尝试从Gist加载数据
+    if (GIST_CONFIG.token && GIST_CONFIG.gistId) {
+        fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
+            headers: {
+                'Authorization': `token ${GIST_CONFIG.token}`,
+            }
+        })
+        .then(response => response.json())
+        .then(gist => {
+            console.log('Gist数据:', gist);
+            if (gist.files && gist.files[GIST_CONFIG.filename]) {
+                const data = JSON.parse(gist.files[GIST_CONFIG.filename].content);
+                console.log('云端用户数:', Object.keys(data.users || {}).length);
+                console.log('云端用户列表:', Object.keys(data.users || {}));
+            }
+        })
+        .catch(error => {
+            console.error('获取Gist数据失败:', error);
+        });
+    }
+}
+
 // 页面加载时加载保存的token
-document.addEventListener('DOMContentLoaded', function() {
+function loadSavedToken() {
     const savedToken = localStorage.getItem('githubToken');
     if (savedToken) {
         GIST_CONFIG.token = savedToken;
-        document.getElementById('githubToken').value = savedToken;
+        const tokenInput = document.getElementById('githubToken');
+        if (tokenInput) {
+            tokenInput.value = savedToken;
+        }
     }
-});
+}
