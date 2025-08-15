@@ -2317,23 +2317,16 @@ function mergeData(cloudData) {
         return merged;
     }
     
-    // 1. 融合用户数据（以最新注册时间为准）
-    const allUsers = { ...cloudData.users, ...users };
-    for (const username in allUsers) {
-        const cloudUser = cloudData.users[username];
-        const localUser = users[username];
-        
-        if (cloudUser && localUser) {
-            // 如果用户在两处都存在，选择注册时间更早的（更完整的）
-            const cloudDate = new Date(cloudUser.joinDate);
-            const localDate = new Date(localUser.joinDate);
-            merged.users[username] = cloudDate <= localDate ? cloudUser : localUser;
-        } else {
-            merged.users[username] = cloudUser || localUser;
-        }
-    }
+    console.log('开始融合数据...');
+    console.log('云端用户数:', Object.keys(cloudData.users || {}).length);
+    console.log('本地用户数:', Object.keys(users).length);
     
-    // 2. 融合预测数据（保留所有预测）
+    // 1. 融合用户数据（合并所有用户，不覆盖）
+    merged.users = { ...cloudData.users, ...users };
+    console.log('融合后用户数:', Object.keys(merged.users).length);
+    console.log('融合后用户列表:', Object.keys(merged.users));
+    
+    // 2. 融合预测数据（合并所有预测，不覆盖）
     merged.predictions = { ...cloudData.predictions };
     for (const username in predictions) {
         if (!merged.predictions[username]) {
@@ -2348,13 +2341,16 @@ function mergeData(cloudData) {
                 const localTime = new Date(localPred.timestamp);
                 const cloudTime = new Date(cloudPred.timestamp);
                 merged.predictions[username][matchKey] = localTime > cloudTime ? localPred : cloudPred;
+                console.log(`用户 ${username} 的预测 ${matchKey} 选择时间戳更新的版本`);
             } else {
+                // 本地独有的预测，直接添加
                 merged.predictions[username][matchKey] = localPred;
+                console.log(`添加本地独有的预测: 用户 ${username}, 比赛 ${matchKey}`);
             }
         }
     }
     
-    // 3. 融合比赛结果数据（保留所有结果）
+    // 3. 融合比赛结果数据（合并所有结果，不覆盖）
     merged.matchResults = { ...cloudData.matchResults };
     for (const matchKey in matchResults) {
         const localResult = matchResults[matchKey];
@@ -2365,8 +2361,11 @@ function mergeData(cloudData) {
             const localTime = new Date(localResult.timestamp);
             const cloudTime = new Date(cloudResult.timestamp);
             merged.matchResults[matchKey] = localTime > cloudTime ? localResult : cloudResult;
+            console.log(`比赛结果 ${matchKey} 选择时间戳更新的版本`);
         } else {
+            // 本地独有的结果，直接添加
             merged.matchResults[matchKey] = localResult;
+            console.log(`添加本地独有的比赛结果: ${matchKey}`);
         }
     }
     
@@ -2434,6 +2433,13 @@ function mergeData(cloudData) {
         
         merged.scheduledMatches[round] = Array.from(matchMap.values());
     }
+    
+    console.log('数据融合完成！');
+    console.log('最终用户数:', Object.keys(merged.users).length);
+    console.log('最终预测数:', Object.keys(merged.predictions).length);
+    console.log('最终比赛结果数:', Object.keys(merged.matchResults).length);
+    console.log('最终排行榜数:', merged.leaderboard.length);
+    console.log('最终历史记录轮次数:', Object.keys(merged.history).length);
     
     return merged;
 }
