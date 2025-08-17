@@ -223,8 +223,35 @@
             <!-- 数据同步配置 -->
             <div id="dataSyncSection" class="admin-panel hidden">
                 <h3>数据同步配置</h3>
+                
+                <!-- 功能说明 -->
+                <div class="sync-explanation" style="margin-bottom: 20px; padding: 15px; background-color: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 5px;">
+                    <h4>📋 功能说明</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <h5>🔄 强制同步所有数据</h5>
+                            <p><strong>功能：</strong>智能融合本地和云端数据</p>
+                            <p><strong>效果：</strong>保留所有用户信息，合并预测和比赛结果</p>
+                            <p><strong>适用场景：</strong>正常数据同步，确保数据完整性</p>
+                        </div>
+                        <div>
+                            <h5>⚠️ 强制覆盖云端数据</h5>
+                            <p><strong>功能：</strong>用本地数据完全替换云端数据</p>
+                            <p><strong>效果：</strong>删除云端其他用户数据，只保留本地数据</p>
+                            <p><strong>适用场景：</strong>数据重置、清理、或强制使用本地版本</p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+                        <h5>📝 操作日志</h5>
+                        <p><strong>功能：</strong>记录所有强制覆盖操作的历史</p>
+                        <p><strong>内容：</strong>操作时间、操作者、被删除的用户、本地数据统计等</p>
+                        <p><strong>用途：</strong>追踪数据变更历史，便于问题排查</p>
+                    </div>
+                    <p style="margin-top: 10px; color: #d63384;"><strong>⚠️ 注意：</strong>强制覆盖会永久删除云端其他用户的数据，请谨慎使用！</p>
+                </div>
+                
                 <div class="sync-config">
-                                    <div class="config-item">
+                    <div class="config-item">
                     <label>GitHub Personal Access Token:</label>
                     <input type="password" id="githubToken" placeholder="请输入你的GitHub Token">
                     <small>用于跨设备数据同步。访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Token设置</a> 创建token，需要勾选gist权限</small>
@@ -238,6 +265,8 @@
                     <button onclick="saveSyncConfig()">保存配置</button>
                     <button onclick="testSync()">测试同步</button>
                     <button onclick="forceSyncAllData()">强制同步所有数据</button>
+                    <button onclick="forceOverwriteCloudData()" style="background-color: #dc3545; color: white;">强制覆盖云端数据</button>
+                    <button onclick="viewOperationLogs()">查看操作日志</button>
                     <button onclick="clearSyncConfig()">清除配置</button>
                     <button onclick="debugSyncStatus()">调试信息</button>
                 </div>
